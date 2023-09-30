@@ -2,9 +2,6 @@
 #include"pedestre.h"
 #include"global_declarations.h"
 
-const double VALOR_PORTA = 1;
-const double VALOR_PAREDE = 1000;
-
 int qtd_linhas_sala = 0;
 int qtd_colunas_sala = 0;
 int qtd_portas = 0;

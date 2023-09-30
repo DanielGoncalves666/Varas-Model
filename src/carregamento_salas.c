@@ -38,8 +38,8 @@ int carregar_sala(char *nome, int modo)
         return 0;
     }
 
-    base.sala = alocar_matriz_int(qtd_linhas_sala, qtd_colunas_sala);
-    if(base.sala == NULL)
+    base.mapa = alocar_matriz_int(qtd_linhas_sala, qtd_colunas_sala);
+    if(base.mapa == NULL)
     {
         fprintf(stderr,"Falha na alocação da sala base.\n");
         return 0;
@@ -66,19 +66,19 @@ int carregar_sala(char *nome, int modo)
             switch(lido)
             {
                 case '#':
-                    base.sala[i][h] = VALOR_PAREDE;
+                    base.mapa[i][h] = VALOR_PAREDE;
                     break;
                 case '_':
-                    base.sala[i][h] = VALOR_PORTA;
+                    base.mapa[i][h] = VALOR_PORTA;
 
                     if( !adicionar_porta_pilha(i,h))
                         return 0;
                     break;
                 case '.':
-                    base.sala[i][h] = 0;
+                    base.mapa[i][h] = 0;
                     break;
                 case 'P':
-                    base.sala[i][h] = 10;
+                    base.mapa[i][h] = 10;
 
                     if( !adicionar_pedestre_lista(i,h))
                         return 0;

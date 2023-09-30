@@ -3,6 +3,13 @@
 #include"porta.h"
 #include"global_declarations.h"
 
+#include <unistd.h>
+
+
+const double regra[3][3] = {{VALOR_DIAGONAL, 1.0, VALOR_DIAGONAL},
+                            {     1.0,       0.0,       1.0     },
+                            {VALOR_DIAGONAL, 1.0, VALOR_DIAGONAL}};
+
 /**
  * ## criar_porta
  * 
@@ -63,6 +70,94 @@ int adicionar_porta_pilha(int loc_linha, int loc_coluna)
     return 1;
 }
 
+/**
+ * ## determinar_piso
+ * 
+ * #### Entrada
+ * Tipo Porta, indicando a estrutura da porta cujo piso será calculado
+ * 
+ * #### Processo
+ * Calcula o campo de piso referente à porta dada como argumento.
+ * 
+ * #### Saída
+ * 1, em sucesso, 0, em falha
+*/
+int determinar_piso(Porta p)
+{
+    if(p == NULL)
+        return 0;
+
+    // adiciona as paredes no piso da porta (outras portas também são consideradas como paredes)
+    for(int i = 0; i < qtd_linhas_sala; i++)
+    {
+        for(int h = 0; h < qtd_colunas_sala; h++)
+        {
+            int val = base.mapa[i][h];
+            if(val == VALOR_PAREDE || val == VALOR_PORTA)
+                p->piso[i][h] = VALOR_PAREDE;
+            else
+                p->piso[i][h] = 0;
+        }
+    }
+    p->piso[p->loc_linha][p->loc_coluna] = VALOR_PORTA; // Adiciona a porta
+
+    double **mat = p->piso;
+    double **aux = alocar_matriz_double(qtd_linhas_sala,qtd_colunas_sala);
+    // matriz para armazenar as alterações para o tempo t + 1
+    if(aux == NULL)
+        return 0;
+
+    copiar_matriz(aux, mat); // copia o piso base para a matriz auxiliar
+
+    int qtd_mudancas;
+    do{
+        qtd_mudancas = 0;
+        for(int i = 0; i < qtd_linhas_sala; i++)
+        {
+            for(int h = 0; h < qtd_colunas_sala; h++)
+            {
+                double atual = mat[i][h];
+
+                if(atual == VALOR_PAREDE || atual == 0.0)
+                    continue;
+
+                for(int j = -1; j < 2; j++)
+                {
+                    if(i + j < 0 || i + j >= qtd_linhas_sala)
+                        continue;
+
+                    for(int k = -1; k < 2; k++)
+                    {
+                        if(h + k < 0 || h + k >= qtd_colunas_sala)
+                            continue;
+
+                        if(mat[i + j][h + k] == VALOR_PAREDE || mat[i + j][h + k] == VALOR_PORTA)
+                            continue;
+
+                        double novo_valor = mat[i][h] + regra[1 + j][1 + k];
+                        if(mat[i + j][h + k] == 0.0)
+                        {
+                            if(aux[i + j][h + k] == 0.0)
+                                aux[i + j][h + k] = novo_valor;
+                            else if(novo_valor < aux[i + j][h + k])
+                                aux[i + j][h + k] = novo_valor;
+                            qtd_mudancas++;
+                        }
+                        else if(novo_valor < aux[i + j][h + k])
+                        {
+                            aux[i + j][h + k] = novo_valor;
+                            qtd_mudancas++;
+                        }
+                    }
+                }
+            }
+        }
+        copiar_matriz(mat,aux);
+
+    }while(qtd_mudancas != 0);
+
+    return 1;
+}
 
 /**
  * ## alocar_matriz_double
@@ -88,7 +183,61 @@ double **alocar_matriz_double(int num_lin, int num_col)
         return NULL;
     
     for(int i = 0; i < num_lin; i++)
-        novo[i] = malloc(sizeof(double) * num_col);
+        novo[i] = calloc(num_col, sizeof(double));
 
     return novo;
+}
+
+/**
+ * ## copiar_matriz
+ * 
+ * #### Entrada
+ * Dois ponteiros para ponteiro de double.
+ *      O primeiro indica a matriz de destino.
+ *      O segundo a matriz fonte.
+ * 
+ * #### Processo
+ *  Copia os dados de 'src' para 'dest'. As matrizes devem ser de mesmo tamanho.
+ * 
+ * #### Saída
+ * 1, em sucesso, 0, em falha
+*/
+int copiar_matriz(double **dest, double **src)
+{
+    if(dest == NULL || src == NULL)
+        return 0;
+
+    for(int i = 0; i < qtd_linhas_sala; i++)
+    {
+        for(int h = 0; h < qtd_colunas_sala; h++)
+        {
+            dest[i][h] = src[i][h];
+        }
+    }
+}
+
+/**
+ * ## imprimir_piso
+ * 
+ * #### Entrada
+ * Ponteiro para ponteiro de double (matriz).
+ * 
+ * #### Processo
+ * Imprime o conteúdo da matriz
+ * 
+ * #### Saída
+ * 1, em sucesso, 0, em falha
+*/
+int imprimir_piso(double **mat)
+{
+    if(mat == NULL)
+        return 0;
+
+    for(int i=0; i < qtd_linhas_sala; i++){
+		for(int h=0; h < qtd_colunas_sala; h++){
+			printf("%.1lf\t", mat[i][h]);
+		}
+		printf("\n\n\n");
+	}
+    return 1;
 }

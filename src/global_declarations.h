@@ -3,7 +3,7 @@
 
 // usada para armazenar o layout base da sala e para acompanhar o posicionamento dos pedestres e outros elementos
 typedef struct sala {
-    int **sala; 
+    int **mapa; 
 } Sala;
 
 struct porta {
@@ -29,8 +29,9 @@ typedef struct lista_pedestres {
     Pedestre *lista;
 } Lista_pedestres;
 
-extern const double VALOR_PORTA;
-extern const double VALOR_PAREDE;
+#define VALOR_PORTA 1
+#define VALOR_PAREDE 1000
+#define VALOR_DIAGONAL 1.5
 
 extern int qtd_linhas_sala;
 extern int qtd_colunas_sala;
