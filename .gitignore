@@ -1,0 +1,9 @@
+src/*
+!src/*/
+!src/*.*
+
+src/*.o
+src/*.exe
+src/a.out
+
+.vscode/
