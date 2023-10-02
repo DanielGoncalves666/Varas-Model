@@ -3,12 +3,12 @@
 #include"porta.h"
 #include"global_declarations.h"
 
-#include <unistd.h>
-
 
 const double regra[3][3] = {{VALOR_DIAGONAL, 1.0, VALOR_DIAGONAL},
                             {     1.0,       0.0,       1.0     },
                             {VALOR_DIAGONAL, 1.0, VALOR_DIAGONAL}};
+
+int determinar_piso_porta(Porta p);
 
 /**
  * ## criar_porta
@@ -71,7 +71,7 @@ int adicionar_porta_pilha(int loc_linha, int loc_coluna)
 }
 
 /**
- * ## determinar_piso
+ * ## determinar_piso_porta
  * 
  * #### Entrada
  * Tipo Porta, indicando a estrutura da porta cujo piso será calculado
@@ -82,7 +82,7 @@ int adicionar_porta_pilha(int loc_linha, int loc_coluna)
  * #### Saída
  * 1, em sucesso, 0, em falha
 */
-int determinar_piso(Porta p)
+int determinar_piso_porta(Porta p)
 {
     if(p == NULL)
         return 0;
@@ -155,6 +155,48 @@ int determinar_piso(Porta p)
         copiar_matriz(mat,aux);
 
     }while(qtd_mudancas != 0);
+
+    return 1;
+}
+
+/**
+ * ## determinar_piso_geral
+ * 
+ * #### Entrada
+ * Nada
+ * 
+ * #### Processo
+ * Determina o piso geral da sala por meio da fusão dos pisos para cada porta.
+ * 
+ * #### Saída
+ * 1, em sucesso, 0, em falha
+ * 
+*/
+int determinar_piso_geral()
+{
+    if(portas.n_portas == 0 || portas.vet_portas == NULL)
+        return 0;
+
+    for(int q = 0; q < portas.n_portas; q++)
+        if(!determinar_piso_porta(portas.vet_portas[q]))
+            return 0;
+
+    portas.piso_final = alocar_matriz_double(qtd_linhas_sala, qtd_colunas_sala);
+    if(portas.piso_final == NULL)
+        return 0;
+    copiar_matriz(portas.piso_final, portas.vet_portas[0]->piso);
+    
+    for(int q = 1; q < portas.n_portas; q++)
+    {
+        for(int i = 0; i < qtd_linhas_sala; i++)
+        {
+            for(int h = 0; h < qtd_colunas_sala; h++)
+            {
+                if(portas.piso_final[i][h] > portas.vet_portas[q]->piso[i][h])
+                    portas.piso_final[i][h] = portas.vet_portas[q]->piso[i][h];
+            }
+        }
+    }
 
     return 1;
 }
