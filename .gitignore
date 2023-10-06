@@ -7,3 +7,4 @@ src/*.exe
 src/a.out
 
 .vscode/
+/build
