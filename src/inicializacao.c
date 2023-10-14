@@ -17,8 +17,6 @@
 
 const char *path = "ambientes/";
 
-int **alocar_matriz_int(int num_lin, int num_col);
-
 /**
  * ## carregar_ambiente
  * 
@@ -27,8 +25,9 @@ int **alocar_matriz_int(int num_lin, int num_col);
  * Inteiro, indicando o modo de carregamento.
  * #### Descrição 
  * Carrega o ambiente armazenado no arquivo passado, considerando o modo requisitado:
- *               {modo} == 0: sala estrutural
- *               {modo} == outro valor: sala estrutural com portas e pedestres
+ *               {modo} == 1: apenas paredes
+ *               {modo} == 2: paredes e portas
+ *               {modo} == 3: paredes, portas e pedestres
  * #### Saída
  * 1 em sucesso, 0 em falha 
 */
@@ -50,13 +49,8 @@ int carregar_ambiente(char *nome, int modo)
         return 0;
     }
 
-    grid_esqueleto.mat = alocar_matriz_int(num_lin_grid, num_col_grid);
-    grid_pedestres.mat = alocar_matriz_int(num_lin_grid, num_col_grid);
-    if(grid_esqueleto.mat == NULL || grid_pedestres.mat == NULL)
-    {
-        fprintf(stderr,"Falha na alocação das grids com dimensões %d x %d.\n", num_lin_grid, num_col_grid);
+    if( !alocar_grids())
         return 0;
-    }
 
     char lido = '\0';
     fscanf(arquivo,"%c",&lido);// elimina o '\n' depois das dimensões
@@ -81,12 +75,12 @@ int carregar_ambiente(char *nome, int modo)
                     grid_esqueleto.mat[i][h] = VALOR_PAREDE;
                     break;
                 case '_':
-                    if(modo)
+                    if(modo != 1)
                     {
                         if( !adicionar_saida_conjunto(i,h))
                             return 0;
                      
-                        grid_esqueleto.mat[i][h] = VALOR_SAIDA;
+                        grid_esqueleto.mat[i][h] = VALOR_PAREDE;
                     }
                     else
                         grid_esqueleto.mat[i][h] = VALOR_PAREDE;
@@ -98,7 +92,7 @@ int carregar_ambiente(char *nome, int modo)
                     break;
                 case 'p':
                 case 'P':
-                    if(modo)
+                    if(modo == 3)
                     {
                         if( !adicionar_pedestre_conjunto(i,h))
                             return 0;
@@ -124,33 +118,50 @@ int carregar_ambiente(char *nome, int modo)
         }
     }
 
+    fclose(arquivo);
+
     return 1;
+}
+
+/**
+ * ## alocar_grids
+ * 
+ * #### Entrada
+ * Nenhuma
+ * #### Descrição
+ * Aloca as matrizes de inteiros das grids.
+ * #### Saída
+ * 1, em sucesso, 0, em fracasso
+*/
+int alocar_grids()
+{
+    grid_esqueleto.mat = alocar_matriz_int(num_lin_grid, num_col_grid);
+    grid_pedestres.mat = alocar_matriz_int(num_lin_grid, num_col_grid);
+    grid_mapa_calor.mat = alocar_matriz_int(num_lin_grid, num_col_grid);
+    if(grid_esqueleto.mat == NULL || grid_pedestres.mat == NULL || grid_mapa_calor.mat == NULL)
+    {
+        fprintf(stderr,"Falha na alocação das grids com dimensões %d x %d.\n", num_lin_grid, num_col_grid);
+        return 0;
+    }
 }
 
 /**
  * ## gerar_ambiente
  * 
  * #### Entrada
- * Quantidade de linhas e colunas, respectivamente.
+ * Nenhuma
  * #### Descrição
- * Gera um ambiente retangular de tamanho LINHAS x COLUNAS com paredes nas bordas.
+ * Gera um ambiente retangular de tamanho num_lin_grid x num_col_grid com paredes nas bordas.
  * #### Saída
  * 1, em sucesso, 0, em falha
 */
-int gerar_ambiente(int linhas, int colunas)
+int gerar_ambiente()
 {
-    grid_esqueleto.mat = alocar_matriz_int(linhas,colunas);
-    if(grid_esqueleto.mat == NULL)
-        return 0;
-
-    num_lin_grid = linhas;
-    num_col_grid = colunas;
-
     for(int i = 0; i < num_lin_grid; i++)
     {
         for(int h = 0; h < num_col_grid; h++)
         {
-            if(i != 0 || i != num_lin_grid - 1 || h != 0 || h != num_col_grid)
+            if(i > 0 && i < num_lin_grid - 1 && h > 0 && h < num_col_grid - 1)
                 grid_esqueleto.mat[i][h] = 0;
             else
                 grid_esqueleto.mat[i][h] = VALOR_PAREDE;
@@ -161,71 +172,57 @@ int gerar_ambiente(int linhas, int colunas)
 }
 
 /**
- * ## inserir_saidas
+ * ## extrair_saidas
  * 
  * #### Entrada
- * Quantidade de saídas.
- * Dois vetores, indicando a linha e coluna das saídas, respectivamente.
- * #### Descrição
- * Insere saídas nas coordenadas específicas pelos vetores.
- * #### Saída
- * Quantidade de portas inseridas.
-*/
-int inserir_saidas(int qtd, int *vet_lin, int *vet_col)
-{
-    if(qtd <= 0 || vet_lin == NULL || vet_col == NULL)
-        return 0;
-
-    for(int q = 0; q < qtd; q++)
-    {
-        int i = vet_lin[q];
-        int h = vet_col[q];
-        if(grid_esqueleto.mat[i][h] == VALOR_SAIDA)
-        {
-            qtd--;
-            continue;  
-        }
-
-        if( !adicionar_saida_conjunto(i,h) ) 
-            return 0;
-
-        grid_esqueleto.mat[i][h] = VALOR_SAIDA;
-    }
-
-    return qtd;
-}
-
-/**
- * ## inserir_pedestres
+ * Arquivo auxiliar, onde as localizações das portas estão armazenadas. 
+ *      Cada linha do arquivo contém as localiações para um conjunto de simulações.
  * 
- * #### Entrada
- * Quantidade de pedestres.
- * Dois vetores, indicando a linha e coluna iniciais dos pedestres, respectivamente.
  * #### Descrição
- * Insere pedestres nas coordenadas específicas pelos vetores.
+ * Lê uma única linha do ARQUIVO_AUXILIAR, extrai as saídas e as adiciona no ambiente.
+ * 
  * #### Saída
- * Quantidade de pedestres inseridos.
+ * Quantidade de saídas extraídas e adicionadas, ou 0, em fracasso.
 */
-int inserir_pedestres(int qtd, int *vet_lin, int *vet_col)
+int extrair_saidas(FILE *arquivo_auxiliar)
 {
-    if(qtd <= 0 || vet_lin == NULL || vet_col == NULL)
-        return 0;
+    int lin = 0;
+    int col = 0;
 
-    for(int q = 0; q < qtd; q++)
+    int qtd = 0;
+    char caracter = '\0';
+
+    while(1)
     {
-        int i = vet_lin[q];
-        int h = vet_col[q];
+        int retorno = fscanf(arquivo_auxiliar,"%d %d %c ",&lin,&col,&caracter);
 
-        if(grid_pedestres.mat[i][h] != 0)
+        if( retorno == EOF)
+            return 0; 
+
+        if( retorno != 3)
         {
-            qtd--;
-            continue;
+            fprintf(stderr, "Falha ao ler o arquivo auxiliar. Verifique se o padrão está sendo seguido.\n");
+            return 0;
         }
 
-        if( !adicionar_pedestre_conjunto(i,h))
-            return 0;
+        qtd++;
 
-        grid_pedestres.mat[i][h] = pedestres.vet[pedestres.n_ped - 1]->id;
+        if(caracter == ',')
+        {
+            if( !adicionar_saida_conjunto(lin,col))
+                return 0;
+        }
+        else if(caracter == '.')
+        {
+            if( !adicionar_saida_conjunto(lin,col))
+                return 0;
+            break;
+        }
+        else
+        {
+            fprintf(stderr, "Falha ao ler o arquivo auxiliar. Símbolo desconhecido.\n");
+            return 0;
+        }
     }
 
     return qtd;

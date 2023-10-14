@@ -63,6 +63,8 @@ Pedestre criar_pedestre(int loc_linha, int loc_coluna)
         novo->mov_lin = -1;
         novo->mov_col = -1;
         novo->estado = MOVENDO;
+
+        grid_mapa_calor.mat[loc_linha][loc_coluna]++;
     }
 
     return novo;
@@ -104,6 +106,59 @@ int adicionar_pedestre_conjunto(int loc_lin, int loc_col)
 }
 
 /**
+ * ## inserir_pedestres_aleatoriamente
+ * 
+ * #### Entrada
+ * Quantidade de pedestres.
+ * #### Descrição
+ * Insere pedestres de forma aleatória no ambiente
+ * #### Saída
+ * 1, em sucesso, 0, em alguma falha
+*/
+int inserir_pedestres_aleatoriamente(int qtd)
+{
+    if(qtd <= 0)
+        return 0;
+
+    zerar_matriz_inteiros(grid_pedestres.mat, num_lin_grid, num_col_grid);
+
+    for(int q = 0; q < qtd;)
+    {
+        int lin = rand() % (num_lin_grid - 1) + 1;
+        int col = rand() % (num_col_grid - 1) + 1;
+
+        if(grid_pedestres.mat[lin][col] != 0 || saidas.combined_field[lin][col] == VALOR_SAIDA 
+            || saidas.combined_field[lin][col] == VALOR_PAREDE)
+            continue;
+
+        if( !adicionar_pedestre_conjunto(lin,col))
+            return 0;
+
+        grid_pedestres.mat[lin][col] = pedestres.vet[pedestres.n_ped - 1]->id;
+        q++;
+    }
+
+    return 1;
+}
+
+/**
+ * ## desalocar_pedestres
+ * 
+ * #### Entrada
+ * Nenhuma
+ * #### Descrição
+ * Desaloca as estruturas para os pedestres e seta a quantidade para 0;
+ * #### Saída
+ * Nenhuma
+*/
+void desalocar_pedestres()
+{
+    free(pedestres.vet);
+    pedestres.vet = NULL;
+    pedestres.n_ped = 0;
+}
+
+/**
  * ## panico
  * 
  * #### Entrada
@@ -118,10 +173,14 @@ int panico()
     int qtd = 0;
     for(int i = 0; i < pedestres.n_ped; i++)
     {
-        if((rand() % 101) / 100 < PANICO)
+        if(pedestres.vet[i]->estado == SAIU)
+            continue;
+
+        if((rand() % 100 + 1) / 100.0 <= PANICO)
         {
             pedestres.vet[i]->estado = PARADO;
             qtd++;
+            //printf("Pedestre %d em panico.\n", pedestres.vet[i]->id);
         }
     }
 
@@ -185,7 +244,7 @@ void determinar_movimento()
  * Dois inteiros, indicando a posição que o pedestre ocupa
  * #### Descrição
  * Varre a vizinhança da célula passada (que um pedestre está) e determina as células vizinhas em 
- * que o pedestre o pedestre pode se mover.
+ * que o pedestre pode se mover.
  * #### Saída
  * Ponteiro para uma lista contendo as células da vizinhança que são válidas para movimentação.
 */
@@ -288,9 +347,9 @@ int resolver_conflitos_movimento()
         if(conteudo > 0) // novo conflito
         {
             conflitos = realloc(conflitos, sizeof(lista_ped_conflito) * (count + 1));
-            conflitos->ped[0] = conteudo;
-            conflitos->ped[1] = atual->id;
-            conflitos->qtd = 2;
+            conflitos[count].ped[0] = conteudo;
+            conflitos[count].ped[1] = atual->id;
+            conflitos[count].qtd = 2;
             /* já existia um pedestre na célula. Uma lista de pedestres em conflito para aquela célula é criada
                e preenchida com os dois pedestre em conflito.*/
 
@@ -304,7 +363,7 @@ int resolver_conflitos_movimento()
         else if(conteudo < 0) // conflito já existente
         {
             int index = (conteudo * -1) - 1;
-            conflitos[index].ped[conflitos->qtd] = atual->id;
+            conflitos[index].ped[conflitos[index].qtd] = atual->id;
             conflitos[index].qtd++;
         }
         else
@@ -316,22 +375,19 @@ int resolver_conflitos_movimento()
     for(int i = 0; i < count; i++)
     {
         int sorted_num = rand() % conflitos[i].qtd;
-        // sorteia um número entre 0 e ( quantidade de ped em conflito)
+        // sorteia um número entre 0 e ( quantidade de ped em conflito, excluso)
 
         for(int h = 0; h < conflitos[i].qtd; h++)
         {
             int index_ped_atual = conflitos[i].ped[h] - 1;
 
-            if(sorted_num == -1)
+            if(sorted_num != h)
                 pedestres.vet[index_ped_atual]->estado = PARADO;
-                continue;
-
-            if(sorted_num < (h + 1))
-                sorted_num = -1;
         }
     }
 
     desalocar_matriz_int(mat_conflitos,num_lin_grid);
+    free(conflitos);
 
     return count;
 }
@@ -408,6 +464,12 @@ int resolver_movimento_em_x(Pedestre um, Pedestre dois)
     /* Criamos duas retas, cada uma contendo os pontos de origem e destino de um dos pedestres.
        Verifica-se então se as retas se cruzam num dado intervalo (se sim, então movimento em X é garantido). */
     reta r_um, r_dois;
+
+    if(um->mov_col == um->loc_col || dois->mov_col == dois->loc_col)
+        return 0;
+    /* Caso uma das condições aconteça, a respectiva reta terá coeficiente angular infinito (pois o denominador
+       seria zero), ou seja,será uma reta vertical. No caso de uma das retas ser vertical, não pode ocorrer 
+       movimentação em X.*/
 
     // m = (yf - yi) / (xf - xi)
     r_um.m = (um->mov_lin - um->loc_lin) / (um->mov_col - um->loc_col);
@@ -497,13 +559,16 @@ void confirmar_movimentacao()
     for(int i = 0; i < pedestres.n_ped; i++)
     {
         Pedestre atual = pedestres.vet[i];
-        if(atual->estado != MOVENDO)
+        if(atual->estado == MOVENDO)
         {
             atual->loc_lin = atual->mov_lin;
             atual->loc_col = atual->mov_col;
 
             if(saidas.combined_field[atual->loc_lin][atual->loc_col] == VALOR_SAIDA)
+            {
                 atual->estado = SAIU;
+                grid_mapa_calor.mat[atual->loc_lin][atual->loc_col]++;
+            }
         }
     }
 }
@@ -543,11 +608,7 @@ int sala_vazia()
 */
 void atualizar_grid_pedestres()
 {
-    for(int i = 0; i < num_lin_grid; i++)
-    {
-        for(int h = 0; h < num_col_grid; h++)
-            grid_pedestres.mat[i][h] = 0;
-    }
+    zerar_matriz_inteiros(grid_pedestres.mat, num_lin_grid, num_col_grid);
 
     for(int p = 0; p < pedestres.n_ped; p++)
     {
@@ -557,11 +618,12 @@ void atualizar_grid_pedestres()
             continue;
 
         grid_pedestres.mat[atual->loc_lin][atual->loc_col] = atual->id;
+        grid_mapa_calor.mat[atual->loc_lin][atual->loc_col]++;
     }
 }
 
 /**
- * ## resetar_pedestres
+ * ## resetar_estado_pedestres
  * 
  * #### Entrada
  * Nenhuma
@@ -570,7 +632,7 @@ void atualizar_grid_pedestres()
  * #### Saída
  * Nenhuma
 */
-void resetar_pedestres()
+void resetar_estado_pedestres()
 {
     for(int p = 0; p < pedestres.n_ped; p++)
     {
@@ -581,29 +643,53 @@ void resetar_pedestres()
 }
 
 /**
- * ## imprimir_grid_pedestres
+ * ## reiniciar_pedestre
  * 
  * #### Entrada
  * Nenhuma
  * #### Descrição
- * Imprime agrid dos pedestres.
+ * Reinicia o estado do pedestre para seu estado original.
  * #### Saída
  * Nenhuma
 */
-void imprimir_grid_pedestres()
+void reiniciar_pedestre()
+{
+    zerar_matriz_inteiros(grid_pedestres.mat, num_lin_grid, num_col_grid);
+    
+    for(int p = 0; p < pedestres.n_ped; p++)
+    {
+        pedestres.vet[p]->loc_lin = pedestres.vet[p]->origin_lin;
+        pedestres.vet[p]->loc_col = pedestres.vet[p]->origin_col;
+        pedestres.vet[p]->estado = MOVENDO;
+        grid_pedestres.mat[pedestres.vet[p]->loc_lin][pedestres.vet[p]->loc_col] = pedestres.vet[p]->id;
+    }
+}
+
+/**
+ * ## imprimir_grid_pedestres
+ * 
+ * #### Entrada
+ * Arquivo onde será escrita a saída.
+ * #### Descrição
+ * Imprime a grid dos pedestres.
+ * #### Saída
+ * Nenhuma
+*/
+void imprimir_grid_pedestres(FILE *arquivo_saida)
 {
 	for(int i = 0; i < num_lin_grid; i++){
 		for(int h = 0; h < num_col_grid; h++)
 		{
 			if(saidas.combined_field[i][h] == VALOR_SAIDA)
-				printf("🚪");
+				fprintf(arquivo_saida,"🚪");
 			else if(saidas.combined_field[i][h] == VALOR_PAREDE)
-				printf("🧱"); // imprime parede
+				fprintf(arquivo_saida,"🧱"); // imprime parede
 			else if(grid_pedestres.mat[i][h] == 0)
-				printf("⬛"); // célula vazia, imprime nada
+				fprintf(arquivo_saida,"⬛"); // célula vazia, imprime nada
 			else
-				printf("👤"); //pedestre
+				fprintf(arquivo_saida,"👤"); //pedestre
 		}
-		printf("\n");
+		fprintf(arquivo_saida,"\n");
 	}
+    fprintf(arquivo_saida,"\n");
 }

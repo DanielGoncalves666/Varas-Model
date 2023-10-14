@@ -88,6 +88,27 @@ int adicionar_saida_conjunto(int loc_linha, int loc_coluna)
 }
 
 /**
+ * ## desalocar_saidas
+ * 
+ * #### Entrada
+ * Nenhuma
+ * #### Descrição
+ * Desaloca as estruturas para as saídas individuais, a matriz da saída combinada e zera a quantidade de saídas
+ * #### Saída
+ * Nenhuma
+*/
+void desalocar_saidas()
+{
+    free(saidas.vet_saidas);
+    for(int i = 0; i < num_lin_grid; i++)
+        free(saidas.combined_field[i]);
+    free(saidas.combined_field);
+    saidas.combined_field = NULL;
+
+    saidas.n_saidas = 0;
+}
+
+/**
  * ## determinar_piso_saida
  * 
  * #### Entrada
@@ -116,7 +137,7 @@ int determinar_piso_saida(Saida s)
         for(int h = 0; h < num_col_grid; h++)
         {
             double conteudo = grid_esqueleto.mat[i][h];
-            if(conteudo == VALOR_PAREDE || conteudo == VALOR_SAIDA)
+            if(conteudo == VALOR_PAREDE)
                 mat[i][h] = VALOR_PAREDE;
             else
                 mat[i][h] = 0.0;
@@ -206,7 +227,7 @@ int determinar_piso_geral()
 {
     if(saidas.n_saidas <= 0 || saidas.vet_saidas == NULL)
     {
-        fprintf(stderr,"Número de saídas inválido ou vetor de saidas NULL.\n");
+        fprintf(stderr,"O número de saídas (%d) é inválido ou o vetor de saidas é NULL.\n", saidas.n_saidas);
         return 0;
     }
 

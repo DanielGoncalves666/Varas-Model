@@ -8,6 +8,9 @@
 
 extern int num_lin_grid;
 extern int num_col_grid;
+extern int numero_simulacoes;
+extern int original_seed;
+extern int numero_pedestres;
 
 enum Status {SAIU, PARADO, MOVENDO};
 
@@ -15,6 +18,8 @@ enum Status {SAIU, PARADO, MOVENDO};
 typedef struct grid {
     int **mat; 
 } Grid;
+
+// typedef int ** Grid;
 
 struct saida {
     int loc_lin, loc_col; // localização da saida na grid
@@ -44,6 +49,7 @@ typedef struct conjunto_pedestres {
 
 extern Grid grid_esqueleto;
 extern Grid grid_pedestres;
+extern Grid grid_mapa_calor;
 extern Conjunto_saidas saidas;
 extern Conjunto_pedestres pedestres;
 
@@ -53,5 +59,6 @@ double **alocar_matriz_double(int num_lin, int num_col);
 void desalocar_matriz_double(double **mat, int lin);
 int copiar_matriz_double(double **dest, double **src);
 int eh_diagonal_valida(int loc_lin, int loc_col, int j, int k, double **mat);
+int zerar_matriz_inteiros(int **mat, int num_lin, int num_col);
 
 #endif

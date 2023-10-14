@@ -6,5 +6,7 @@ src/*.o
 src/*.exe
 src/a.out
 
+a.out
 .vscode/
-/build
+build/*
+output/*

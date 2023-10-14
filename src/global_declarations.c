@@ -12,9 +12,13 @@
 
 int num_lin_grid = 0;
 int num_col_grid = 0;
+int numero_simulacoes = 1; // uma única simulação por padrão
+int numero_pedestres = 1;
+int original_seed = 0;
 
 Grid grid_esqueleto = {NULL}; // grid contendo paredes e saidas
 Grid grid_pedestres = {NULL}; // grid contendo apenas a localização dos pedestres
+Grid grid_mapa_calor = {NULL}; // armazena a quantidade de vezes que um pedestre esteve em uma dada célula
 Conjunto_saidas saidas = {NULL, NULL, 0};
 Conjunto_pedestres pedestres = {NULL,0};
 
@@ -192,3 +196,27 @@ int eh_diagonal_valida(int loc_lin, int loc_col, int j, int k, double **mat)
     return 1;
 }
 
+/**
+ * ## zerar_matriz_inteiros
+ * 
+ * #### Entrada
+ * Matriz de inteiros.
+ * Número de linhas e colunas da matriz
+ * #### Descrição
+ * Zera a matriz de interios passada
+ * #### Saída
+ * 1, em sucesso, 0, em fracasso
+*/
+int zerar_matriz_inteiros(int **mat, int num_lin, int num_col)
+{
+    if(mat == NULL)
+        return 0;
+
+    for(int i = 0; i < num_lin; i++)
+    {
+        for(int h = 0; h < num_col; h++)
+            mat[i][h] = 0;
+    }
+
+    return 1;
+}
