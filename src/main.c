@@ -1,13 +1,14 @@
-/*
-    Modelo de evacuação de pedestres proposto por Varas em seu artigo de 2007.
-
-    Daniel Gonçalves, 2023.
+/* 
+   File: main.c
+   Author: Daniel Gonçalves
+   Date: 2023-10-15
+   Description: Contém a função main do projeto, além das estruturas e funções necessárias para o uso do argp para
+                tratamento de argumentos via linha de comando.
 */
 
 #include<stdio.h>
 #include<stdlib.h>
 #include<string.h>
-#include<time.h>
 #include<argp.h>
 #include<unistd.h>
 
@@ -15,18 +16,7 @@
 #include"../headers/inicializacao.h"
 #include"../headers/saida.h"
 #include"../headers/pedestre.h"
-
-struct command_line {
-    char nome_arquivo_entrada[51];
-    char nome_arquivo_saida[51];
-    char nome_arquivo_auxiliar[51];
-    int output_type;
-    int output_to_file;
-    int input_method;
-};
-
-const char *path_saidas = "saidas/";
-const char *path_output = "output/";
+#include"../headers/impressao.h"
 
 const char * argp_program_version = "Varas Original, sem movimentação em X ou através de obstáculos.";
 
@@ -81,49 +71,48 @@ static struct argp_option options[] = {
     {"ped", 'p', "PEDESTRES", 0, "Número de pedestres a serem inseridos no ambiente de forma aleatória.",8},
     {"simu", 's', "SIMULACOES", 0, "Número de simulações a serem realizadas por conjunto de saídas."},
     {"seed", 'e', "SEED", 0, "Semente inicial para geração de números pseudo-aleatórios."},
+    {"debug", 'd',0,0, "Indica se mensagens de debug devem ser impressas na saída padrão."},
     {"\nOutros:\n",0,0,OPTION_DOC,0,9},
     {0}
 };
 
 
 error_t parser_function(int key, char *arg, struct argp_state *state);
-int abrir_arquivo_auxiliar(struct command_line commands, FILE **arquivo_auxiliar);
-int abri_arquivo_output(struct command_line commands, FILE **arquivo_saida);
-void imprimir_mapa_calor(FILE *arquivo_saida);
 
 static struct argp argp = {options,&parser_function, NULL, doc};
 
 int main(int argc, char **argv){
-    struct command_line commands = {"sala_padrao.txt","","",1,0,3};
 
     if( argp_parse(&argp, argc, argv,0,0,&commands) != 0)
         return 0;
 
     FILE *arquivo_auxiliar = NULL;
-    if(!abrir_arquivo_auxiliar(commands, &arquivo_auxiliar))
+    if(abrir_arquivo_auxiliar(commands, &arquivo_auxiliar))
         return 0;
     
     FILE *arquivo_saida = NULL;
-    if(!abri_arquivo_output(commands, &arquivo_saida))
+    if(abrir_arquivo_output(commands, &arquivo_saida))
     {
         if(arquivo_auxiliar != NULL)
             fclose(arquivo_auxiliar);
         return 0;
     }
 
-    if(commands.input_method == 4 && !alocar_grids())
-        return 0;
-
     if(commands.input_method != 4)
     {
-        if( !carregar_ambiente(commands.nome_arquivo_entrada, commands.input_method))
+        if( carregar_ambiente(commands.nome_arquivo_entrada, commands.input_method))
             return 0;
     }
     else
     {
-        if( !gerar_ambiente())
+        if( alocar_grids())
+            return 0;
+
+        if( gerar_ambiente())
             return 0;
     }
+
+    imprimir_informacoes_gerais(commands, arquivo_saida);
 
     do
     {
@@ -137,14 +126,15 @@ int main(int argc, char **argv){
         for(int i = 0; i < numero_simulacoes; i++, seed++)
         {
             srand(seed);
-            if( !determinar_piso_geral())
+            if( determinar_piso_geral())
                 return 0;
 
-            //imprimir_piso(saidas.combined_field);
+            if(commands.debug)
+                imprimir_piso(saidas.combined_field);
 
             if(commands.input_method != 3)
             {
-                if( !inserir_pedestres_aleatoriamente(numero_pedestres))
+                if( inserir_pedestres_aleatoriamente(numero_pedestres))
                     return 0;
             }
             
@@ -157,11 +147,12 @@ int main(int argc, char **argv){
             }
 
             int num_passos_tempo = 0;
-            while(!sala_vazia())
+            while(ambiente_vazio())
             {
+                if(commands.debug)
+                    printf("\nPasso %d.\n", num_passos_tempo);
+
                 determinar_movimento();
-                //printf("\t Passo %d:\n", num_passos_tempo);
-                //fprintf(arquivo_saida, "\t Passo %d:\n", num_passos_tempo);
                 panico();
                 varredura_movimento_em_x();
                 resolver_conflitos_movimento();
@@ -206,11 +197,7 @@ int main(int argc, char **argv){
 
     }while(1);
 
-    if(arquivo_auxiliar != NULL)
-        fclose(arquivo_auxiliar);
-
-    if(arquivo_saida != NULL && arquivo_saida != stdout)
-        fclose(arquivo_saida);
+    finalizar_programa(arquivo_saida, arquivo_auxiliar);
 
     return 0;
 }
@@ -291,6 +278,9 @@ error_t parser_function(int key, char *arg, struct argp_state *state)
                 return EIO;
             }
             break;
+        case 'd':
+            commands->debug = 1;
+            break;
         case ARGP_KEY_ARG:
             fprintf(stderr, "Nenhum argumento não-opcional é esperado.\n");
             return EINVAL;
@@ -326,113 +316,4 @@ error_t parser_function(int key, char *arg, struct argp_state *state)
     }
 
     return 0;
-}
-
-
-/**
- * ## abrir_arquivo_auxiliar
- * 
- * #### Entrada
- * Estrutura de comandos, contendo os argumentos de linha de comando
- * Ponteiro para ponteiro de arquivo.
- * #### Descrição
- * Abre o arquivo auxiliar em modo leitura.
- * #### Saída,
- * 1, em sucesso, 0, em falha.
-*/
-int abrir_arquivo_auxiliar(struct command_line commands, FILE **arquivo_auxiliar)
-{
-    char complete_path[100] = "";
-    
-    if( commands.input_method == 1 || commands.input_method == 4)
-    {
-        sprintf(complete_path,"%s%s",path_saidas,commands.nome_arquivo_auxiliar);
-
-        *arquivo_auxiliar = fopen(complete_path,"r");
-        if(*arquivo_auxiliar == NULL)
-        {
-            fprintf(stderr, "Não foi possível abrir o arquivo auxiliar.\n");
-            return 0;
-        }
-    }
-
-    return 1;
-}
-
-/**
- * ## abri_arquivo_output
- * 
- * #### Entrada
- * Estrutura de comandos, contendo os argumentos de linha de comando
- * Ponteiro para ponteiro de arquivo.
- * #### Descrição
- * Abre o arquivo de saída em modo leitura, caso algum tenha sido informado.
- * Se nenhum arquivo tiver sido informado, seta a saída para stdout.
- * #### Saída,
- * 1, em sucesso, 0, em falha.
-*/
-int abri_arquivo_output(struct command_line commands, FILE **arquivo_saida)
-{
-    char complete_path[300] = "";
-    
-    time_t timer;
-    time(&timer);
-    struct tm *agora = gmtime(&timer);
-    
-    if(commands.output_to_file)
-    {
-        // se nenhum nome tiver sido passado
-        if(strcmp(commands.nome_arquivo_saida, "") == 0)
-        {
-            char *output_type_name;
-            if(commands.output_type == 1)
-                output_type_name = "visual";
-            else if(commands.output_type == 2)
-                output_type_name = "tempo_discreto";
-            else
-                output_type_name = "mapa_calor";
-
-            sprintf(complete_path,"%s%s-%s-%s-%02d:%02d:%02d-%02d %02d %d.txt", path_output, output_type_name, 
-                    commands.nome_arquivo_entrada, commands.nome_arquivo_auxiliar, agora->tm_hour - 3, 
-                    agora->tm_min, agora->tm_sec, agora->tm_mday, agora->tm_mon + 1, agora->tm_year + 1900);
-        }
-        else
-            sprintf(complete_path,"%s%s",path_output,commands.nome_arquivo_saida);
-
-
-        *arquivo_saida = fopen(complete_path,"w");
-        if(*arquivo_saida == NULL)
-        {
-            fprintf(stderr, "Não foi possível criar o arquivo de output.\n");
-            return 0;
-        }
-    }
-    else
-    {
-        *arquivo_saida = stdout;
-    }
-
-    return 1;
-}
-
-/**
- * ## imprimir_mapa_calor
- * 
- * #### Entrada
- * Arquivo onde será escrita a saída.
- * #### Descrição
- * Imprime a grid do mapa de calor.
- * O valor de cada posição é dividido pelo numero de simulações. Deste modo, o mapa de calor é um mapa de calor médio.
- * #### Saída
- * Nenhuma
-*/
-void imprimir_mapa_calor(FILE *arquivo_saida)
-{
-    for(int i = 0; i < num_lin_grid; i++){
-		for(int h = 0; h < num_col_grid; h++)
-            fprintf(arquivo_saida, "%7.2lf ", (double) grid_mapa_calor.mat[i][h] / (double) numero_simulacoes);
-
-		fprintf(arquivo_saida,"\n");
-	}
-    fprintf(arquivo_saida,"\n");
 }

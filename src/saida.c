@@ -1,11 +1,9 @@
-/*
-    Módulo saida.
-
-    Contém funções dedicadas à criação e administração de saídas, além do cálculo do floor field.
-    
-    Daniel Gonçalves, 2023.
+/* 
+   File: saida.c
+   Author: Daniel Gonçalves
+   Date: 2023-10-15
+   Description: Contém funções dedicadas à criação e administração de saídas, além do cálculo do campo de piso.
 */
-
 
 #include<stdio.h>
 #include<stdlib.h>
@@ -22,17 +20,11 @@ Saida criar_saida(int loc_linha, int loc_coluna);
 int determinar_piso_saida(Saida s);
 
 /**
- * ## criar_saida
+ * Cria uma estrutura Saida correspondente à localização passada (se válida) e a inicializa
  * 
- * #### Entrada
- * Localização da saída (sua linha e coluna).
- * 
- * #### Descrição
- * Se a localização for válida cria uma estrutura Saida correspondente à localização passada e a inicializa.
- * 
- * #### Saída
- * Estrutura criada ou NULL.
- * 
+ * @param loc_linha Linha da saída
+ * @param loc_coluna Coluna da saída
+ * @return Estrutura Saida ou NULL (fracasso).
 */
 Saida criar_saida(int loc_linha, int loc_coluna)
 {
@@ -52,18 +44,11 @@ Saida criar_saida(int loc_linha, int loc_coluna)
 }
 
 /**
- * ## adicionar_saida_conjunto
+ * Adiciona uma nova saida no conjunto de saidas.
  * 
- * #### Entrada
- * Localização da saída (linha e coluna, respectivamente).
- * 
- * #### Descrição
- * Cria uma nova saida e calcula o piso correspondente. 
- * Adiciona a saida no conjunto.
- * 
- * #### Saída
- * 0, em falha
- * 1, em sucesso
+ * @param loc_linha Linha da saída.
+ * @param loc_coluna Coluna da saída.
+ * @return Inteiro, 0 (sucesso) ou 1 (fracasso).
 */
 int adicionar_saida_conjunto(int loc_linha, int loc_coluna)
 {
@@ -71,62 +56,50 @@ int adicionar_saida_conjunto(int loc_linha, int loc_coluna)
     if(nova == NULL)
     {
         fprintf(stderr,"Falha na criação da Saida em (%d,%d).\n",loc_linha, loc_coluna);
-        return 0;
+        return 1;
     }
 
-    saidas.n_saidas += 1;
-    saidas.vet_saidas = realloc(saidas.vet_saidas, sizeof(Saida) * saidas.n_saidas);
+    saidas.num_saidas += 1;
+    saidas.vet_saidas = realloc(saidas.vet_saidas, sizeof(Saida) * saidas.num_saidas);
     if(saidas.vet_saidas == NULL)
     {
         fprintf(stderr, "Falha na realocação do vetor de saídas.\n");
-        return 0;
+        return 1;
     }    
 
-    saidas.vet_saidas[saidas.n_saidas - 1] = nova;
+    saidas.vet_saidas[saidas.num_saidas - 1] = nova;
 
-    return 1;
+    return 0;
 }
 
 /**
- * ## desalocar_saidas
- * 
- * #### Entrada
- * Nenhuma
- * #### Descrição
- * Desaloca as estruturas para as saídas individuais, a matriz da saída combinada e zera a quantidade de saídas
- * #### Saída
- * Nenhuma
+ * Desaloca as estruturas para as saídas individuais, a matriz da saída combinada e zera a quantidade de saídas.
 */
 void desalocar_saidas()
 {
+    for(int s = 0; s < saidas.num_saidas; s++)
+        free(saidas.vet_saidas[s]->field);
     free(saidas.vet_saidas);
-    for(int i = 0; i < num_lin_grid; i++)
-        free(saidas.combined_field[i]);
-    free(saidas.combined_field);
+    saidas.vet_saidas = NULL;
+
+    desalocar_matriz_double(saidas.combined_field, num_lin_grid);
     saidas.combined_field = NULL;
 
-    saidas.n_saidas = 0;
+    saidas.num_saidas = 0;
 }
 
 /**
- * ## determinar_piso_saida
+ * Calcula o campo de piso referente à saida dada como argumento
  * 
- * #### Entrada
- * Saida cujo piso será calculado
- * 
- * #### Descrição
- * Calcula o campo de piso referente à saida dada como argumento.
- * 
- * #### Saída
- * 0, em falha
- * 1, em sucesso
+ * @param s Saida cujo piso será calculado.
+ * @return Inteiro, 0 (sucesso) ou 1 (fracasso).
 */
 int determinar_piso_saida(Saida s)
 {
     if(s == NULL)
     {
         fprintf(stderr, "NULL como entrada em 'determinar_piso_saida'.\n");
-        return 0;
+        return 1;
     }
 
     double **mat = s->field;
@@ -136,7 +109,7 @@ int determinar_piso_saida(Saida s)
     {
         for(int h = 0; h < num_col_grid; h++)
         {
-            double conteudo = grid_esqueleto.mat[i][h];
+            double conteudo = grid_esqueleto[i][h];
             if(conteudo == VALOR_PAREDE)
                 mat[i][h] = VALOR_PAREDE;
             else
@@ -150,7 +123,7 @@ int determinar_piso_saida(Saida s)
     if(aux == NULL)
     {
         fprintf(stderr,"Falha na alocação da matriz auxiliar para cálculo do piso.\n");
-        return 0;
+        return 1;
     }
 
     copiar_matriz_double(aux, mat); // copia o piso base para a matriz auxiliar
@@ -206,47 +179,38 @@ int determinar_piso_saida(Saida s)
     }
     while(qtd_mudancas != 0);
 
-    return 1;
+    return 0;
 }
 
-
 /**
- * ## determinar_piso_geral
- * 
- * #### Entrada
- * Nada
- * 
- * #### Descrição
  * Determina o piso geral do ambiente por meio da fusão dos pisos para cada saída.
  * 
- * #### Saída
- * 1, em sucesso, 0, em falha
- * 
+ * @return Inteiro, 0 (sucesso) ou 1 (falha).
 */
 int determinar_piso_geral()
 {
-    if(saidas.n_saidas <= 0 || saidas.vet_saidas == NULL)
+    if(saidas.num_saidas <= 0 || saidas.vet_saidas == NULL)
     {
-        fprintf(stderr,"O número de saídas (%d) é inválido ou o vetor de saidas é NULL.\n", saidas.n_saidas);
-        return 0;
+        fprintf(stderr,"O número de saídas (%d) é inválido ou o vetor de saidas é NULL.\n", saidas.num_saidas);
+        return 1;
     }
 
-    for(int q = 0; q < saidas.n_saidas; q++)
+    for(int q = 0; q < saidas.num_saidas; q++)
     {
-        if( !determinar_piso_saida(saidas.vet_saidas[q]))
-            return 0;
+        if( determinar_piso_saida(saidas.vet_saidas[q]))
+            return 1;
     }
 
     saidas.combined_field = alocar_matriz_double(num_lin_grid, num_col_grid);
     if(saidas.combined_field == NULL)
     {
         fprintf(stderr,"Falha na alocação da matriz de piso combinado.\n");
-        return 0;
+        return 1;
     }
 
     copiar_matriz_double(saidas.combined_field, saidas.vet_saidas[0]->field); // copia o piso da primeira porta
     
-    for(int q = 1; q < saidas.n_saidas; q++)
+    for(int q = 1; q < saidas.num_saidas; q++)
     {
         for(int i = 0; i < num_lin_grid; i++)
         {
@@ -258,34 +222,5 @@ int determinar_piso_geral()
         }
     }
 
-    return 1;
-}
-
-/**
- * ## imprimir_piso
- * 
- * #### Entrada
- * Matriz de Double.
- * 
- * #### Descrição
- * Imprime o conteúdo da matriz
- * 
- * #### Saída
- * 1, em sucesso, 0, em falha
-*/
-int imprimir_piso(double **mat)
-{
-    if(mat == NULL)
-        return 0;
-
-    for(int i=0; i < num_lin_grid; i++){
-		for(int h=0; h < num_col_grid; h++){
-            if(mat[i][h] >= 1000.0)
-                printf("%.0lf\t", mat[i][h]);
-            else
-			    printf("%5.1lf\t", mat[i][h]);
-		}
-		printf("\n\n");
-	}
-    return 1;
+    return 0;
 }

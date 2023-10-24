@@ -1,9 +1,9 @@
-/*
-    Módulo global_declarations
-
-    Contém declarações e definições de variáveis globais e estruturas que serão usadas por todo o programa.s
-
-    Daniel Gonçalves, 2023.
+/* 
+   File: global_declarations.c
+   Author: Daniel Gonçalves
+   Date: 2023-10-15
+   Description: Contém declarações e definições de variáveis globais e estruturas que serão usadas por todo o programa.
+                Além disso, contém funções utilitárias.
 */
 
 #include<stdio.h>
@@ -16,26 +16,27 @@ int numero_simulacoes = 1; // uma única simulação por padrão
 int numero_pedestres = 1;
 int original_seed = 0;
 
-Grid grid_esqueleto = {NULL}; // grid contendo paredes e saidas
-Grid grid_pedestres = {NULL}; // grid contendo apenas a localização dos pedestres
-Grid grid_mapa_calor = {NULL}; // armazena a quantidade de vezes que um pedestre esteve em uma dada célula
+Grid grid_esqueleto = NULL; // grid contendo paredes e saidas
+Grid grid_pedestres = NULL; // grid contendo apenas a localização dos pedestres
+Grid grid_mapa_calor = NULL; // armazena a quantidade de vezes que um pedestre esteve em uma dada célula
 Conjunto_saidas saidas = {NULL, NULL, 0};
 Conjunto_pedestres pedestres = {NULL,0};
+Command_line commands = {"sala_padrao.txt","","",1,0,3,0};
 
 /**
- * ## alocar_matriz_int
- * 
- * #### Entrada
- * Número de linhas e de colunas, respectivamente.
- * #### Descrição
- * Aloca de forma dinâmica uma matriz de inteiros de dimensão NUM_LIN x NUM_COL.
- * #### Saída
- * Matriz de inteiros contendo apenas zeros.
-*/
+ * Aloca de forma dinâmica uma matriz de inteiros de dimensão NUM_LIN x NUM_COL
+ *
+ * @param num_lin Número de linhas.
+ * @param num_col Número de colunas.
+ * @return Matriz de inteiros zerada ou NULL.
+ */
 int **alocar_matriz_int(int num_lin, int num_col)
 {
     if(num_lin <= 0 || num_col <= 0)
+    {
+        fprintf(stderr,"Dimensões do matriz nulas ou negativas.\n");
         return NULL;
+    }
 
     int **novo = malloc(sizeof(int *) * num_lin);
     if( novo == NULL )
@@ -52,34 +53,55 @@ int **alocar_matriz_int(int num_lin, int num_col)
 }
 
 /**
- * ## desalocar_matriz_int
- * 
- * #### Entrada
- * Matriz a ser desalocada
- * Quantidade de linhas da matriz
- * #### Descrição
- * Desaloca a matriz passadaa
- * #### Nada
-*/
-void desalocar_matriz_int(int **mat, int lin)
+ * Zera a matriz de inteiros indicada.
+ *
+ * @param mat Matriz de inteiros
+ * @param num_lin Número de linhas.
+ * @param num_col Número de colunas.
+ * @return Inteiro, 0 (sucesso) ou 1 (fracasso).
+ */
+int zerar_matriz_inteiros(int **mat, int num_lin, int num_col)
 {
-    for(int i = 0; i < lin; i++)
+    if(mat == NULL)
+        return 1;
+
+    for(int i = 0; i < num_lin; i++)
     {
-        free(mat[i]);
+        if(mat[i] == NULL)
+            return 1;
+
+        for(int h = 0; h < num_col; h++)
+            mat[i][h] = 0;
     }
-    free(mat);
+
+    return 0;
 }
 
 /**
- * ## alocar_matriz_double
- * 
- * #### Entrada
- * Número de linhas e colunas, respectivamente.
- * #### Descrição
- * Aloca de forma dinâmica uma matriz de doubles de dimensão NUM_LIN x NUM_COL
- * #### Saída
- * Matriz de double contendo apenas zeros ou NULL.
-*/
+ * Desaloca a matriz de inteiros indicada.
+ *
+ * @param mat Matriz de inteiros
+ * @param num_lin Número de linhas.
+ */
+void desalocar_matriz_int(int **mat, int lin)
+{
+    if(mat != NULL)
+    {
+        for(int i = 0; i < lin; i++)
+        {
+            free(mat[i]);
+        }
+        free(mat);
+    }
+}
+
+/**
+ * Aloca de forma dinâmica uma matriz de doubles de dimensão NUM_LIN x NUM_COL.
+ *
+ * @param num_lin Número de linhas.
+ * @param num_col Número de colunas.
+ * @return Matriz de doubles zerado ou NULL.
+ */
 double **alocar_matriz_double(int num_lin, int num_col)
 {
     if(num_lin <= 0 || num_col <= 0)
@@ -98,38 +120,33 @@ double **alocar_matriz_double(int num_lin, int num_col)
     return novo;
 }
 
-
 /**
- * ## desalocar_matriz_double
- * 
- * #### Entrada
- * Matriz a ser desalocada
- * Quantidade de linhas da matriz
- * #### Descrição
- * Desaloca a matriz passadaa
- * #### Nada
-*/
+ * Desaloca a matriz de doubles indicada
+ *
+ * @param mat Matriz de doubles.
+ * @param num_lin Número de linhas.
+ */
 void desalocar_matriz_double(double **mat, int lin)
 {
-    for(int i = 0; i < lin; i++)
+    if(mat != NULL)
     {
-        free(mat[i]);
+        for(int i = 0; i < lin; i++)
+        {
+            free(mat[i]);
+        }
+        free(mat);
     }
-    free(mat);
 }
 
 /**
- * ## copiar_matriz_double
+ * Copia o conteúdo da matriz SRC para a matriz DEST.
+ *
+ * Comportamento indefinido ocorrerá se as matrizes não forem de mesmo tamanho.
  * 
- * #### Entrada
- * Duas matrizes, sendo a primeira a de destino e a segunda a matriz fonte,
- * 
- * #### Descrição
- *  Copia os dados de SRC para DEST. As matrizes devem ser de mesmo tamanho.
- * 
- * #### Saída
- * 1, em sucesso, 0, em falha
-*/
+ * @param dest Matriz de doubles que será o destino.
+ * @param src Matriz de doubles que será a fonte.
+ * @return Inteiro, 0 (sucesso) ou 1 (fracasso).
+ */
 int copiar_matriz_double(double **dest, double **src)
 {
     if(dest == NULL || src == NULL)
@@ -145,19 +162,15 @@ int copiar_matriz_double(double **dest, double **src)
 }
 
 /**
- * ## eh_diagonal_valida
- * 
- * #### Entrada
- * Dois inteiros, indicando a célula base.
- * Dois inteiros, indicando a célula alvo.
- * Matriz de doubles, indicando o piso.
- * #### Descrição
- * Verifica se a célula na diagonal (alvo) da célula base é acessível.
- * Isso impede a atribuição de valores de pisos e a movimentação de pedestres através de obstáculos.
- * #### Saída
- * 0, se a diagonal for inválida
- * 1, se for válida
-*/
+ * Zera a matriz de inteiros indicada.
+ *
+ * @param loc_lin Linha da célula base.
+ * @param loc_col Coluna da célula base.
+ * @param j Modificador de linha. Quando somado à LOC_LIN indica a linha da célula alvo.
+ * @param k Modificador de coluna. Quando somado à LOC_COL indica a coluna da célula alvo.
+ * @param mat Matriz de doubles. Indica o campo de piso.
+ * @return Inteiro, 0 (diagonal inválida) ou 1 (diagonal válida).
+ */
 int eh_diagonal_valida(int loc_lin, int loc_col, int j, int k, double **mat)
 {
     if(j == -1 && k == -1)
@@ -191,31 +204,6 @@ int eh_diagonal_valida(int loc_lin, int loc_col, int j, int k, double **mat)
             if(loc_col + 1 < num_col_grid && mat[loc_lin][loc_col + 1] == VALOR_PAREDE)
                 return 0;
         }
-    }
-
-    return 1;
-}
-
-/**
- * ## zerar_matriz_inteiros
- * 
- * #### Entrada
- * Matriz de inteiros.
- * Número de linhas e colunas da matriz
- * #### Descrição
- * Zera a matriz de interios passada
- * #### Saída
- * 1, em sucesso, 0, em fracasso
-*/
-int zerar_matriz_inteiros(int **mat, int num_lin, int num_col)
-{
-    if(mat == NULL)
-        return 0;
-
-    for(int i = 0; i < num_lin; i++)
-    {
-        for(int h = 0; h < num_col; h++)
-            mat[i][h] = 0;
     }
 
     return 1;
