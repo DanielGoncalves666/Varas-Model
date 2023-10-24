@@ -8,5 +8,8 @@ src/a.out
 
 a.out
 .vscode/
+
 build/*
+!build/.gitkeep
 output/*
+!output/.gitkeep
