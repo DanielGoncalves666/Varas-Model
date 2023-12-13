@@ -37,7 +37,8 @@ typedef struct lista_vizin_valida{
 
 
 Pedestre criar_pedestre(int loc_linha, int loc_coluna);
-lista_vizin_valida *determinar_vizin_valida(int loc_lin, int loc_col);
+celula determinar_menor_celula(int loc_lin, int loc_col);
+celula determinar_menor_celula_valida(int loc_lin, int loc_col);
 void adicionar_na_lista_vizin_valida(lista_vizin_valida *vizinhos,int lin, int col, double valor);
 int resolver_movimento_em_x(Pedestre um, Pedestre dois);
 int intersecao(reta r_um, reta r_dois, Pedestre p);
@@ -159,7 +160,7 @@ int panico()
     int qtd = 0;
     for(int i = 0; i < pedestres.num_ped; i++)
     {
-        if(pedestres.vet[i]->estado == SAIU)
+        if(pedestres.vet[i]->estado == SAIU || pedestres.vet[i]->estado == SAINDO)
             continue;
 
         if((rand() % 100 + 1) / 100.0 <= PANICO)
@@ -184,13 +185,15 @@ void determinar_movimento()
     {
         Pedestre atual = pedestres.vet[p];
 
-        if(atual->estado == SAIU || atual->estado == PARADO)
+        if(atual->estado != MOVENDO)
             continue;
 
-        lista_vizin_valida *vizinhos = determinar_vizin_valida(atual->loc_lin, atual->loc_col);
+        celula destino = commands.sempre_menor ? determinar_menor_celula(atual->loc_lin, atual->loc_col)
+                                               : determinar_menor_celula_valida(atual->loc_lin, atual->loc_col);
+        // Possível usar ponteiros para funções para melhorar essa linha de código.
 
-        if(vizinhos->qtd == 0) // não existem células vizinhas válidas para movimentação
-        {
+        if(destino.loc_lin == -1 && destino.loc_col == -1)
+        {  // não existem células vizinhas válidas para movimentação 
             atual->estado = PARADO;
         
             if(commands.debug)
@@ -198,40 +201,23 @@ void determinar_movimento()
         }
         else
         {
-            // trata células com melhor valor iguais
-            int iguais = 1;
-
-            for(int i = 1; i < vizinhos->qtd; i++)
-            {   
-                if(vizinhos->vet[i].valor != vizinhos->vet[0].valor)
-                    break;
-
-                iguais++;
-            }
-
-            int sorted_cell = rand() % iguais;
-
-            if(commands.debug && iguais > 1)
-                printf("Ped %d, %d células iguais.\n", atual->id, iguais);
-
             // altera a intenção de movimentação
-            atual->mov_lin = vizinhos->vet[sorted_cell].loc_lin;
-            atual->mov_col = vizinhos->vet[sorted_cell].loc_col;
+            atual->mov_lin = destino.loc_lin;
+            atual->mov_col = destino.loc_col;
         }
-
-        free(vizinhos);
     }
 }
 
 /**
- * Varre a vizinhança da célula indicada (onde um pedestre está) e determina as ceĺulas vizinhas em que o pedestre
- * pode se moer.
+ * Varre a vizinhança da célula indicada (onde um pedestre está) e determina se a célula com menor
+ * campo de piso está ou não ocupada. Se estiver seta a qtd de células válidas para 0, indicando que o pedestre
+ * não pode se mover.
  * 
  * @param loc_linha Linha onde o pedestre está.
  * @param loc_coluna Coluna onde o pedestre está.
- * @return Ponteiro para uma lista contendo as células da vizinhança que são válidas para movimentação.
+ * @return Celula que o pedestre na posição indicada deve se mover ou {-1,-1,-1} se ele deve ficar parado.
 */
-lista_vizin_valida *determinar_vizin_valida(int loc_lin, int loc_col)
+celula determinar_menor_celula(int loc_lin, int loc_col)
 {
     double **piso = saidas.combined_field;
     lista_vizin_valida *vizinhos = calloc(1, sizeof(lista_vizin_valida));
@@ -240,23 +226,104 @@ lista_vizin_valida *determinar_vizin_valida(int loc_lin, int loc_col)
     {
         for(int k = -1; k < 2; k++)
         {
+            if(piso[loc_lin + j][loc_col + k] == VALOR_PAREDE)
+                continue; // parede na célula
+
+            if(loc_lin + j == loc_lin && loc_col + k == loc_col)
+                continue; // célula do próprio pedestre
+
             if(j != 0 && k != 0)
             {
                 if(! eh_diagonal_valida(loc_lin,loc_col,j,k,piso))
                     continue; // impossível chegar na célula
             }
 
+
+            adicionar_na_lista_vizin_valida(vizinhos,loc_lin + j,loc_col + k, piso[loc_lin + j][loc_col + k]);
+        }
+    }
+
+    celula destino = {-1,-1,-1};
+
+    if(vizinhos->qtd > 0)
+    {
+        int iguais = 1;
+
+        for(int i = 1; i < vizinhos->qtd; i++)
+        {   
+            if(vizinhos->vet[i].valor != vizinhos->vet[0].valor)
+                break;
+
+            iguais++;
+        }
+
+        int sorted_cell = rand() % iguais;
+
+        if(grid_pedestres[vizinhos->vet[sorted_cell].loc_lin][vizinhos->vet[sorted_cell].loc_col] == 0)
+            destino = vizinhos->vet[sorted_cell]; // apenas se a célula não estiver ocupada
+    }
+
+    free(vizinhos);
+
+    return destino;
+}
+
+
+/**
+ * Varre a vizinhança da célula indicada (onde um pedestre está) e determina as ceĺulas vizinhas em que o pedestre
+ * pode se mover.
+ * 
+ * @param loc_linha Linha onde o pedestre está.
+ * @param loc_coluna Coluna onde o pedestre está.
+ * @return Celula que o pedestre na posição indicada deve se mover ou {-1,-1,-1} se ele deve ficar parado.
+*/
+celula determinar_menor_celula_valida(int loc_lin, int loc_col)
+{
+    double **piso = saidas.combined_field;
+    lista_vizin_valida *vizinhos = calloc(1, sizeof(lista_vizin_valida));
+
+    for(int j = -1; j < 2; j++)
+    {
+        for(int k = -1; k < 2; k++)
+        {
             if(piso[loc_lin + j][loc_col + k] == VALOR_PAREDE)
                 continue; // parede na célula
 
             if(grid_pedestres[loc_lin + j][loc_col + k] > 0)
                 continue; // pedestre na célula (inclui a célula do próprio pedestre)
 
+            if(j != 0 && k != 0)
+            {
+                if(! eh_diagonal_valida(loc_lin,loc_col,j,k,piso))
+                    continue; // impossível chegar na célula
+            }
+
             adicionar_na_lista_vizin_valida(vizinhos,loc_lin + j,loc_col + k, piso[loc_lin + j][loc_col + k]);
         }
     }
 
-    return vizinhos;
+    celula destino = {-1,-1,-1};
+
+    if(vizinhos->qtd > 0)
+    {
+        int iguais = 1;
+
+        for(int i = 1; i < vizinhos->qtd; i++)
+        {   
+            if(vizinhos->vet[i].valor != vizinhos->vet[0].valor)
+                break;
+
+            iguais++;
+        }
+
+        int sorted_cell = rand() % iguais;
+
+        destino = vizinhos->vet[sorted_cell];
+    }
+
+    free(vizinhos);
+
+    return destino;
 }
 
 /**
@@ -315,7 +382,7 @@ int resolver_conflitos_movimento()
     {
         Pedestre atual = pedestres.vet[i];
 
-        if(atual->estado == SAIU || atual->estado == PARADO)
+        if(atual->estado != MOVENDO)
             continue;
 
         int conteudo = mat_conflitos[atual->mov_lin][atual->mov_col]; 
@@ -331,7 +398,8 @@ int resolver_conflitos_movimento()
 
             count++;
 
-            printf("Conflito %d: %d %d.\n", count, conteudo, atual->id);
+            if(commands.debug)
+                printf("Conflito %d: %d %d.\n", count, conteudo, atual->id);
             mat_conflitos[atual->mov_lin][atual->mov_col] = count * -1;
             // o número negativo indica que já existe um conflito na célula.
             // Além disso, serve como index para a lista de pedestres em conflito.
@@ -519,10 +587,13 @@ void confirmar_movimentacao()
 
             if(saidas.combined_field[atual->loc_lin][atual->loc_col] == VALOR_SAIDA)
             {
-                atual->estado = SAIU;
+                atual->estado = commands.na_saida ? SAINDO // quando o pedestre deve ficar um passo de tempo antes de ser removido do ambiente
+                                                  : SAIU; // quando o pedestre deve ser removido assim que pisar na saída
                 grid_mapa_calor[atual->loc_lin][atual->loc_col]++;
             }
         }
+        else if(atual->estado == SAINDO)
+            atual->estado = SAIU; // O pedestre ficou um passo de tempo na saída e deve ser removido
     }
 }
 
@@ -569,7 +640,7 @@ void resetar_estado_pedestres()
 {
     for(int p = 0; p < pedestres.num_ped; p++)
     {
-        if(pedestres.vet[p]->estado != SAIU)
+        if(pedestres.vet[p]->estado != SAIU && pedestres.vet[p]->estado != SAINDO)
            pedestres.vet[p]->estado = MOVENDO;
 
     }

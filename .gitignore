@@ -13,3 +13,5 @@ build/*
 !build/.gitkeep
 output/*
 !output/.gitkeep
+
+debug.txt

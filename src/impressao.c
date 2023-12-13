@@ -27,10 +27,10 @@ void imprimir_informacoes_gerais(struct command_line commands, FILE *arquivo_sai
 	fprintf(arquivo_saida, "Quantidade de simulações: %d.\n", numero_simulacoes);
 	fprintf(arquivo_saida, "Seed inicial utilizada: %d.\n", original_seed);
 
-	if(commands.input_method == 1 || commands.input_method == 4)
+	if(commands.input_method == 1 || commands.input_method == 2|| commands.input_method == 5)
 		fprintf(arquivo_saida, "Quantidade de pedestres: %d.\n", numero_pedestres);
 	
-	if(commands.input_method == 4)
+	if(commands.input_method == 5)
 		fprintf(arquivo_saida, "Dimensões do ambiente: %d x %d.\n", num_lin_grid, num_col_grid);
 
 	fprintf(arquivo_saida,"--------------------------------------------------------------\n\n");
@@ -64,14 +64,14 @@ void imprimir_grid_pedestres(FILE *arquivo_saida)
 	for(int i = 0; i < num_lin_grid; i++){
 		for(int h = 0; h < num_col_grid; h++)
 		{
-			if(saidas.combined_field[i][h] == VALOR_SAIDA)
+			if(grid_pedestres[i][h] != 0)
+				fprintf(arquivo_saida,"👤");
+			else if(saidas.combined_field[i][h] == VALOR_SAIDA)
 				fprintf(arquivo_saida,"🚪");
 			else if(saidas.combined_field[i][h] == VALOR_PAREDE)
 				fprintf(arquivo_saida,"🧱"); // imprime parede
 			else if(grid_pedestres[i][h] == 0)
 				fprintf(arquivo_saida,"⬛"); // célula vazia
-			else
-				fprintf(arquivo_saida,"👤");
 		}
 		fprintf(arquivo_saida,"\n");
 	}
@@ -107,4 +107,5 @@ void imprimir_piso(double **mat)
 		}
 		printf("\n\n");
 	}
+	printf("\n");
 }

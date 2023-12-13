@@ -77,14 +77,23 @@ Dimensões do ambiente:
   
 Variáveis de simulação:
 
-  -d, --debug                Indica se mensagens de debug devem ser impressas
-                             na saída padrão.
   -e, --seed=SEED            Semente inicial para geração de números
                              pseudo-aleatórios.
   -p, --ped=PEDESTRES        Número de pedestres a serem inseridos no ambiente
                              de forma aleatória.
   -s, --simu=SIMULACOES      Número de simulações a serem realizadas por
                              conjunto de saídas.
+  
+Toggle Options:
+
+  -d, --debug                Indica se mensagens de debug devem ser impressas
+                             na saída padrão.
+      --na-saida             Indica que o pedestre deve permanecer por um passo
+                             de tempo quando chega na saída (invés de ser
+                             retirado imediatamente).
+      --sempre-menor         Indica que a movimentação dos pedestres é
+                             sempre para a menor célula, com o pedestre
+                             ficando parado se ela estiver ocupada.
   
 Outros:
 
@@ -114,20 +123,26 @@ A opção 1 é a padrão.
 carregado ou se o ambiente deve ser gerado.
         Ambiente carregado de um arquivo:
                 1 - Apenas a estrutura do ambiente (portas substituídas por paredes).
-                2 - Apenas a estrutura do ambiente (portas incluídas).
-                3 - Estrutura, portas e pedestres.
+                2 - Estrutura e portas.
+                3 - Estrutura e pedestres.              4 - Estrutura, portas e pedestres.
         Ambiente criado automaticamente:
-                4 - Ambiente será criado considerando quantidade de linhas e colunas
-passadas pelas opções --lin e --col,com portas informadas via
---auxiliary-file.
-O método 3 é o padrão.
-Para os métodos 1 e 4, --auxiliary-file é obrigatório.
-Para o método 4, --lin e --col são obrigatórios.
+                5 - Ambiente será criado considerando quantidade de linhas e colunas
+passadas pelas opções --lin e --col,Opções que não carregam portas do
+arquivo de entrada devem recebê-las via --auxiliary-file.
+O método 4 é o padrão.
+Para os métodos 1,3 e 5, --auxiliary-file é obrigatório.
+Para o método 5, --lin e --col são obrigatórios.
 
-O restante das opções (--simu, --ped, --seed), são sempre opcionais.
+As variáveis de simulação não são obrigatórias.
 --input-file tem valor padrão de "sala_padrao.txt".
 --simu e --ped tem valor padrão de 1.
 --seed tem valor padrão de 0.
+
+Toggle Options são opções que podem ser ativadas.
+--na-sala quando não ativado permite que os pedestres sejam removidos da sala
+assim que pisam em uma saída.
+--sempre-menor quando não ativado permite que os pedestres se movimentem para
+a célula menor válida.
 
 Opções desnecessárias para determinados modos são ignoradas.
 ```

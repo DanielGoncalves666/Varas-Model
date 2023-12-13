@@ -34,7 +34,7 @@ int abrir_arquivo_auxiliar(struct command_line commands, FILE **arquivo_auxiliar
 {
     char complete_path[100] = "";
     
-    if( commands.input_method == 1 || commands.input_method == 4)
+    if( commands.input_method == 1 || commands.input_method == 3 || commands.input_method == 5)
     {
         sprintf(complete_path,"%s%s",path_saidas,commands.nome_arquivo_auxiliar);
 
@@ -80,9 +80,11 @@ int abrir_arquivo_output(struct command_line commands, FILE **arquivo_saida)
             else
                 output_type_name = "mapa_calor";
 
-            sprintf(complete_path,"%s%s-%s-%s-%02d %02d %d-%02d:%02d:%02d.txt", path_output, output_type_name, 
-                    commands.nome_arquivo_entrada, commands.nome_arquivo_auxiliar, agora->tm_mday, agora->tm_mon + 1, 
-                    agora->tm_year + 1900, agora->tm_hour - 3, agora->tm_min, agora->tm_sec);
+            int horas = agora->tm_hour - 3 < 0 ? 24 + (agora->tm_hour - 3): agora->tm_hour - 3;
+
+            sprintf(complete_path,"%s%s-%s-%02d %02d %d-%02d:%02d:%02d.txt", path_output, output_type_name, 
+                    commands.nome_arquivo_entrada, agora->tm_mday, agora->tm_mon + 1, 
+                    agora->tm_year + 1900, horas, agora->tm_min, agora->tm_sec);
         }
         else
             sprintf(complete_path,"%s%s",path_output,commands.nome_arquivo_saida);
@@ -176,7 +178,7 @@ int carregar_ambiente(char *nome, int modo)
                     grid_esqueleto[i][h] = VALOR_PAREDE;
                     break;
                 case '_':
-                    if(modo != 1)
+                    if(modo != 1 && modo != 3)
                     {
                         if( adicionar_saida_conjunto(i,h))
                             return 1;
@@ -193,7 +195,7 @@ int carregar_ambiente(char *nome, int modo)
                     break;
                 case 'p':
                 case 'P':
-                    if(modo == 3)
+                    if(modo == 3 || modo == 4)
                     {
                         if( adicionar_pedestre_conjunto(i,h))
                             return 1;
