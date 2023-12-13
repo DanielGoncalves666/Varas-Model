@@ -21,7 +21,16 @@ Grid grid_pedestres = NULL; // grid contendo apenas a localização dos pedestre
 Grid grid_mapa_calor = NULL; // armazena a quantidade de vezes que um pedestre esteve em uma dada célula
 Conjunto_saidas saidas = {NULL, NULL, 0};
 Conjunto_pedestres pedestres = {NULL,0};
-Command_line commands = {"sala_padrao.txt","","",1,0,3,0,0,0};
+Command_line commands = {.nome_arquivo_entrada="sala_padrao.txt",
+                         .nome_arquivo_saida="",
+                         .nome_arquivo_auxiliar="",
+                         .output_type=1,
+                         .output_to_file=0,
+                         .input_method=3,
+                         .debug=0,
+                         .na_saida=0,
+                         .sempre_menor=0,
+                         .evitar_mov_cantos=0};
 
 /**
  * Aloca de forma dinâmica uma matriz de inteiros de dimensão NUM_LIN x NUM_COL
