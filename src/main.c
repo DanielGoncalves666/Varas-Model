@@ -23,10 +23,6 @@ const char * argp_program_version = "Varas Original, sem movimentação em X ou 
 const char doc[] = "Varas - Simula uma evacuação de pedestres por meio do modelo de (Varas,2007)."
 "\v"
 "O arquivo passado por --auxiliary-file deve conter, em cada uma de suas linhas, as localizações das saídas para um único conjunto de simulações.\n"
-"Um número indeterminado de portas é aceito para um dado conjunto de simulações, com o conteúdo do arquivo devendo seguir o seguinte padrão:\n"
-"LIN_PORTA_1 COL_PORTA_1, LIN_PORTA_2 COL_PORTA_2 ...\n"
-"\tDepois do último par deve vir um ponto final.\n"
-"OBS: Saídas repetidas são aceitas.\n"
 "\n"
 "--output-type indica quais e como os dados gerados pela simulação devem ser enviados para a saída. As seguintes opções são possíveis:\n"
 "\t 1 - Impressão visual do ambiente.\n"
@@ -38,10 +34,10 @@ const char doc[] = "Varas - Simula uma evacuação de pedestres por meio do mode
 "\tAmbiente carregado de um arquivo:\n"
 "\t\t1 - Apenas a estrutura do ambiente (portas substituídas por paredes).\n"
 "\t\t2 - Estrutura e portas.\n"
-"\t\t3 - Estrutura e pedestres."
+"\t\t3 - Estrutura e pedestres.\n"
 "\t\t4 - Estrutura, portas e pedestres.\n"
 "\tAmbiente criado automaticamente:\n"
-"\t\t5 - Ambiente será criado considerando quantidade de linhas e colunas passadas pelas opções --lin e --col,"
+"\t\t5 - Ambiente será criado considerando quantidade de linhas e colunas passadas pelas opções --lin e --col.\n"
 "Opções que não carregam portas do arquivo de entrada devem recebê-las via --auxiliary-file.\n"
 "O método 4 é o padrão.\n"
 "Para os métodos 1,3 e 5, --auxiliary-file é obrigatório.\n"
@@ -51,12 +47,16 @@ const char doc[] = "Varas - Simula uma evacuação de pedestres por meio do mode
 "--input-file tem valor padrão de \"sala_padrao.txt\".\n"
 "--simu e --ped tem valor padrão de 1.\n"
 "--seed tem valor padrão de 0.\n\n"
-"Toggle Options são opções que podem ser ativadas.\n"
-"--na-sala quando não ativado permite que os pedestres sejam removidos da sala assim que pisam em uma saída.\n"
-"--sempre-menor quando não ativado permite que os pedestres se movimentem para a célula menor válida.\n"
-"--evitar-mov-cantos quando não ativado permite movimentação através dos cantos de paredes/obstáculos.\n"
+"Toggle Options são opções que podem ser ativadas e também não são obrigatórias.\n"
+"--na-sala quando ativado obriga os pedestres a ficarem um passo de tempo na saída do ambiente antes de serem removidos.\n"
+"--sempre-menor quando ativado obriga os pedestres a só se moverem para a menor célula de sua vizinhança. Se esta estiver ocupada, o pedestre irá esperar ela ser desocupada.\n"
+"--evitar-mov-cantos quando ativado impede que pedestres se movimentem através dos cantos de paredes/obstáculos. Um único movimento se torna necessariamente em 3 movimentos.\n"
+"--permitir-mov-x quando ativado permite que os pedestres ignorem a restrição que impede movimentações em X.\n"
+"--debug ativa mensagens de debug.\n"
+"--status ativa mensagens que indicam o progessão de simulações.\n"
+"--detalhes inclui um cabeçalho contendo as correspondentes saídas de cada conjunto de simulação.\n"
 "\n"
-"Opções desnecessárias para determinados modos são ignoradas.\n";
+"Opções desnecessárias para determinados --input-method são ignoradas.\n";
 
 static struct argp_option options[] = {
     {"\nArquivos:\n",0,0,OPTION_DOC,0,1},
@@ -77,17 +77,20 @@ static struct argp_option options[] = {
     {"simu", 's', "SIMULACOES", 0, "Número de simulações a serem realizadas por conjunto de saídas."},
     {"seed", 'e', "SEED", 0, "Semente inicial para geração de números pseudo-aleatórios."},
 
-    {"\nToggle Options:\n",0,0,OPTION_DOC,0,9},
+   {"\nToggle Options:\n",0,0,OPTION_DOC,0,9},
     {"debug", 'd',0,0, "Indica se mensagens de debug devem ser impressas na saída padrão.",10},
+    {"status", 1004, 0,0, "Indica se mensagens de status durante a execução de simulações devem ser impressas em stdout."},
+    {"detalhes", 1005, 0,0, "Indica se o output deve conter informações sobre as saídas."},
     {"na-saida", 1000,0,0, "Indica que o pedestre deve permanecer por um passo de tempo quando chega na saída (invés de ser retirado imediatamente)."},
-    {"sempre-menor", 1001, 0, 0, "Indica que a movimentação dos pedestres é sempre para a menor célula, com o pedestre ficando parado se ela estiver ocupada."},
+    {"sempre-menor", 1001, 0,0, "Indica que a movimentação dos pedestres é sempre para a menor célula, com o pedestre ficando parado se ela estiver ocupada."},
     {"evitar-mov-cantos",1003,0,0, "Indica que a movimentação através de cantos de paredes/obstáculos deve ser impedida."},
+    {"permitir-mov-x",1006,0,0, "Permite que os pedestres se movimentem em X."},
 
     {"\nOutros:\n",0,0,OPTION_DOC,0,11},
     {0}
 };
 
-
+void obter_comando_completo(char *comando_completo, int key, char *arg);
 error_t parser_function(int key, char *arg, struct argp_state *state);
 
 static struct argp argp = {options,&parser_function, NULL, doc};
@@ -123,8 +126,17 @@ int main(int argc, char **argv){
             return 0;
     }
 
-    imprimir_informacoes_gerais(commands, arquivo_saida);
+    imprimir_comando(commands, arquivo_saida);
 
+     int num_conjunto_simulacoes = -1;
+    if(commands.status && arquivo_auxiliar)
+    {
+        num_conjunto_simulacoes = extrair_numero_linhas(arquivo_auxiliar);
+        if(num_conjunto_simulacoes == -1)
+            return 0;
+    }
+
+    int conjunto_index = 0;
     do
     {
         if(commands.input_method == 1 || commands.input_method == 3 || commands.input_method == 5)
@@ -133,18 +145,42 @@ int main(int argc, char **argv){
                 break; // caso ocorra algum erro, ou se todos os conjuntos de saídas já tiverem sido processados.
         }
 
-        // fprintf(arquivo_saida, "Conjunto de saídas: %d %d", saidas.vet_saidas[0]->loc_lin, saidas.vet_saidas[0]->loc_col);
-        // for(int s = 1; s < saidas.num_saidas; s++)
-        //     fprintf(arquivo_saida, ", %d %d", saidas.vet_saidas[s]->loc_lin, saidas.vet_saidas[s]->loc_col);
-        // fprintf(arquivo_saida, ".\n");
+        if(commands.detalhes)
+            imprimir_cabecalho(arquivo_saida);
 
-        int seed = original_seed;
+        int retorno = determinar_piso_geral();
+        if( retorno == 1) return 0;
+        else if(retorno == -1)
+        {
+            if(commands.output_type != 2 && commands.output_type != 4)
+                fprintf(arquivo_saida, "Pelo menos uma das saídas do conjunto não é acessível.\n");
+            else
+            {
+                // imprime um placeholder quando existe uma saída inválida no conjunto
+                for(int vezes = 0; vezes < numero_simulacoes; vezes++)
+                {
+                    fprintf(arquivo_saida,"-1 ");
+                }
+                fprintf(arquivo_saida, "\n");
+            }
+
+            if(commands.input_method == 1 || commands.input_method == 3 || commands.input_method == 5)
+                desalocar_saidas();
+
+            if(commands.status)
+            {
+                imprimir_status(conjunto_index, num_conjunto_simulacoes);
+                conjunto_index++;
+            }
+
+            continue;
+        }
+
         for(int i = 0; i < numero_simulacoes; i++, seed++)
         {
             srand(seed);
-            if( determinar_piso_geral())
-                return 0;
 
+            // debug
             if(commands.debug)
                 imprimir_piso(saidas.combined_field);
 
@@ -165,12 +201,19 @@ int main(int argc, char **argv){
             int num_passos_tempo = 0;
             while(ambiente_vazio())
             {
+                if(commands.output_type == 1)
+                    fprintf(arquivo_saida,"Passo %d\n",num_passos_tempo);
+
+                // debug
                 if(commands.debug)
                     printf("\nPasso %d.\n", num_passos_tempo);
 
                 determinar_movimento();
                 panico();
-                varredura_movimento_em_x();
+                
+                if(!commands.permitir_mov_x)
+                    varredura_movimento_em_x();
+                
                 resolver_conflitos_movimento();
                 confirmar_movimentacao();
                 atualizar_grid_pedestres();
@@ -211,6 +254,12 @@ int main(int argc, char **argv){
         if(commands.input_method == 2 || commands.input_method == 4)
             break;
 
+        if(commands.status)
+        {
+            imprimir_status(conjunto_index, num_conjunto_simulacoes);
+            conjunto_index++;
+        }
+
     }while(1);
 
     finalizar_programa(arquivo_saida, arquivo_auxiliar);
@@ -221,6 +270,8 @@ int main(int argc, char **argv){
 error_t parser_function(int key, char *arg, struct argp_state *state)
 {
     struct command_line *commands = state->input;
+
+    obter_comando_completo(commands->comando_completo, key, arg);
 
     switch(key)
     {
@@ -287,8 +338,8 @@ error_t parser_function(int key, char *arg, struct argp_state *state)
             }
             break;
         case 'e':
-            original_seed = atoi(arg);
-            if(original_seed < 0)
+            seed = atoi(arg);
+            if(seed < 0)
             {
                 fprintf(stderr, "Seed inválida.\n");
                 return EIO;
@@ -306,8 +357,17 @@ error_t parser_function(int key, char *arg, struct argp_state *state)
         case 1003:
             commands->evitar_mov_cantos = 1;
             break;
+        case 1004:
+            commands->status = 1;
+            break;
+        case 1005:
+            commands->detalhes = 1;
+            break;
+        case 1006:
+            commands->permitir_mov_x = 1;
+            break;
         case ARGP_KEY_ARG:
-            fprintf(stderr, "Nenhum argumento não-opcional é esperado.\n");
+            fprintf(stderr, "Nenhum argumento não-opcional é esperado, mas %s foi inserido.\n", arg);
             return EINVAL;
             break;
         case ARGP_KEY_END:
@@ -341,4 +401,64 @@ error_t parser_function(int key, char *arg, struct argp_state *state)
     }
 
     return 0;
+}
+
+/**
+ * Realiza o armazenamento das partes do comando entrado via terminal em uma string. 
+ * 
+ * @param comando_completo String onde as partes do comando serão armazenadas.
+ * @param key Inteiro que indica qual opção está sendo recebida.
+ * @param arg String, contendo o argumento da opção recebida, se existir.
+*/
+void obter_comando_completo(char *comando_completo, int key, char *arg)
+{
+    char aux[100];
+
+    switch(key)
+    {
+        case 1000:
+            sprintf(aux, " --na-saida");
+            break;
+        case 1001:
+            sprintf(aux, " --sempre-menor");
+            break;
+        case 1002:
+            sprintf(aux, " --alfa=%s",arg);
+            break;
+        case 1003:
+            sprintf(aux, " --evitar-mov-cantos");
+            break;
+        case 1004:
+            sprintf(aux, " --status");
+            break;
+        case 1005:
+            sprintf(aux, " --detalhes");
+            break;
+        case 1006:
+            sprintf(aux, " --permitir-mov-x");
+            break;
+        case 'd':
+            sprintf(aux, " --debug");
+            break;
+        case 'o':
+        case 'O':
+        case 'i':
+        case 'm':
+        case 'a':
+        case 'l':
+        case 'c':
+        case 'p':
+        case 's':
+        case 'e':
+            if(arg == NULL)
+                sprintf(aux, " -%c",key);
+            else
+                sprintf(aux, " -%c%s",key, arg);
+
+            break;
+        default:
+            return;
+    }
+
+    strcat(comando_completo, aux);
 }

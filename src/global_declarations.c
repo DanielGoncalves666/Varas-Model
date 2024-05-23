@@ -14,7 +14,7 @@ int num_lin_grid = 0;
 int num_col_grid = 0;
 int numero_simulacoes = 1; // uma única simulação por padrão
 int numero_pedestres = 1;
-int original_seed = 0;
+int seed = 0;
 
 Grid grid_esqueleto = NULL; // grid contendo paredes e saidas
 Grid grid_pedestres = NULL; // grid contendo apenas a localização dos pedestres
@@ -30,7 +30,11 @@ Command_line commands = {.nome_arquivo_entrada="sala_padrao.txt",
                          .debug=0,
                          .na_saida=0,
                          .sempre_menor=0,
-                         .evitar_mov_cantos=0};
+                         .evitar_mov_cantos=0,
+                         .permitir_mov_x = 0,
+                         .status=0,
+                         .detalhes=0
+                         };
 
 /**
  * Aloca de forma dinâmica uma matriz de inteiros de dimensão NUM_LIN x NUM_COL
@@ -81,6 +85,31 @@ int zerar_matriz_inteiros(int **mat, int num_lin, int num_col)
 
         for(int h = 0; h < num_col; h++)
             mat[i][h] = 0;
+    }
+
+    return 0;
+}
+
+/**
+ * Zera a matriz de doubles indicada.
+ *
+ * @param mat Matriz de doubles
+ * @param num_lin Número de linhas.
+ * @param num_col Número de colunas.
+ * @return Inteiro, 0 (sucesso) ou 1 (fracasso).
+ */
+int zerar_matriz_doubles(double **mat, int num_lin, int num_col)
+{
+    if(mat == NULL)
+        return 1;
+
+    for(int i = 0; i < num_lin; i++)
+    {
+        if(mat[i] == NULL)
+            return 1;
+
+        for(int h = 0; h < num_col; h++)
+            mat[i][h] = 0.0;
     }
 
     return 0;

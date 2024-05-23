@@ -25,11 +25,6 @@ typedef struct lista_ped_conflito{
     int ped[8]; // considerando a vizinhança em uso (moore), 8 é a quantidade máxima de conflitos possível
 }lista_ped_conflito;
 
-typedef struct celula{
-    int loc_lin, loc_col;
-    double valor;
-}celula;
-
 typedef struct lista_vizin_valida{
     int qtd;
     celula vet[8]; // 8 é a quantidade de células na vizinhança desconsiderando a célula do pedestre
@@ -169,7 +164,7 @@ int panico()
             qtd++;
 
             if(commands.debug)
-                printf("Pedestre %d em panico.\n", pedestres.vet[i]->id);
+                printf("%d em panico.\n", pedestres.vet[i]->id);
         }
     }
 
@@ -197,7 +192,7 @@ void determinar_movimento()
             atual->estado = PARADO;
         
             if(commands.debug)
-                printf("Ped %d, encurralado.\n", atual->id);
+                printf("%d, encurralado.\n", atual->id);
         }
         else
         {

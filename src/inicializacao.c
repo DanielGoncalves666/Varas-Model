@@ -32,7 +32,7 @@ const char *path_output = "output/";
 */
 int abrir_arquivo_auxiliar(struct command_line commands, FILE **arquivo_auxiliar)
 {
-    char complete_path[100] = "";
+    char complete_path[500] = "";
     
     if( commands.input_method == 1 || commands.input_method == 3 || commands.input_method == 5)
     {
@@ -62,11 +62,8 @@ int abrir_arquivo_auxiliar(struct command_line commands, FILE **arquivo_auxiliar
 int abrir_arquivo_output(struct command_line commands, FILE **arquivo_saida)
 {
     char complete_path[300] = "";
-    
-    time_t timer;
-    time(&timer);
-    struct tm *agora = gmtime(&timer);
-    
+    char dataHora[51];
+
     if(commands.output_to_file)
     {
         // se nenhum nome tiver sido passado
@@ -77,14 +74,17 @@ int abrir_arquivo_output(struct command_line commands, FILE **arquivo_saida)
                 output_type_name = "visual";
             else if(commands.output_type == 2)
                 output_type_name = "tempo_discreto";
-            else
+            else if(commands.output_type == 3)
                 output_type_name = "mapa_calor";
+            
+            time_t timer;
+            time(&timer);
+            struct tm *agora = localtime(&timer);
+	
+	        strftime(dataHora,50,"%F_%Z_%T",agora);
 
-            int horas = agora->tm_hour - 3 < 0 ? 24 + (agora->tm_hour - 3): agora->tm_hour - 3;
-
-            sprintf(complete_path,"%s%s-%s-%02d %02d %d-%02d:%02d:%02d.txt", path_output, output_type_name, 
-                    commands.nome_arquivo_entrada, agora->tm_mday, agora->tm_mon + 1, 
-                    agora->tm_year + 1900, horas, agora->tm_min, agora->tm_sec);
+            sprintf(complete_path,"%s%s-%s-%s.txt", path_output, output_type_name, 
+                    commands.nome_arquivo_entrada,dataHora);
         }
         else
             sprintf(complete_path,"%s%s",path_output,commands.nome_arquivo_saida);
@@ -252,6 +252,49 @@ int gerar_ambiente()
 }
 
 /**
+ * Determina o número de linhas, o que corresponde ao número de conjuntos de simulações, presentes no arquivo auxiliar passado.
+ * 
+ * @param arquivo_auxiliar Arquivo com a localização de saídas para diversos conjuntos de simulações.
+ * @return Número de linhas (número de conjuntos de simuções) presentes no arquivo, ou -1, em falha.
+*/
+int extrair_numero_linhas(FILE *arquivo_auxiliar)
+{
+    if(arquivo_auxiliar == NULL)
+        return -1;
+
+    char caractere = '\n', char_anterior = '\n';
+    int count = 0;
+
+    while(1)
+    {
+        char_anterior = caractere; // para casos onde o arquivo não termina com quebra de linha
+        caractere = fgetc(arquivo_auxiliar);
+        
+        if(caractere == '\n')
+            count++;
+
+        if(caractere == EOF)
+        {
+            if(char_anterior != '\n')
+                count++;
+
+            if(feof(arquivo_auxiliar))
+                break;
+
+            if(ferror(arquivo_auxiliar))
+            {
+                fprintf(stderr, "Erro durante a leitura do arquivo auxiliar.");
+                return -1;
+            }
+        }
+    }
+
+    fseek(arquivo_auxiliar, 0, SEEK_SET);
+
+    return count;
+}
+
+/**
  * Lê uma única linha do arquivo passado, extrai as saídas e as adiciona no ambiente. 
  * 
  * @param arquivo_auxiliar Contém as localizações das portas.
@@ -259,11 +302,16 @@ int gerar_ambiente()
 */
 int extrair_saidas(FILE *arquivo_auxiliar)
 {
-    int lin = 0;
-    int col = 0;
+    int lin = 0; // armazena temporariamente a linha da saída lida
+    int col = 0; // armazena temporariamente a coluna da saída lida
 
-    int qtd = 0;
+    int qtd = 0; // quantidade de saídas extraídas
     char caracter = '\0';
+
+    int ehNova = 1; // indica se a lin e col lidas devem ser incluídas como uma nova porta (1)
+                    // ou se devem ser expandidas sobre a última saída (0)
+
+    int retorno = 0;
 
     while(1)
     {
@@ -278,19 +326,25 @@ int extrair_saidas(FILE *arquivo_auxiliar)
             return 0;
         }
 
-        qtd++;
+        if(ehNova == 1)
+        {
+            qtd++;
+            if( adicionar_saida_conjunto(lin,col))
+                return 0;
+        }
+        else
+        {
+            // expande a última saída adicionada
+            if( expandir_saida(saidas.vet_saidas[saidas.num_saidas - 1],lin,col))
+                return 0;
+        }
 
-        if(caracter == ',')
-        {
-            if( adicionar_saida_conjunto(lin,col))
-                return 0;
-        }
+        if(caracter == '+')
+            ehNova = 0;
+        else if(caracter == ',')
+            ehNova = 1;
         else if(caracter == '.')
-        {
-            if( adicionar_saida_conjunto(lin,col))
-                return 0;
             break;
-        }
         else
         {
             fprintf(stderr, "Falha ao ler o arquivo auxiliar. Símbolo desconhecido.\n");
@@ -317,6 +371,7 @@ void finalizar_programa(FILE *arquivo_saida, FILE *arquivo_auxiliar)
 
     desalocar_pedestres();
     desalocar_saidas();
+    
 
     desalocar_matriz_int(grid_esqueleto,num_lin_grid);
     desalocar_matriz_int(grid_pedestres,num_lin_grid);

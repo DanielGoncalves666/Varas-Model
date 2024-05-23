@@ -9,20 +9,26 @@
 extern int num_lin_grid;
 extern int num_col_grid;
 extern int numero_simulacoes;
-extern int original_seed;
+extern int seed;
 extern int numero_pedestres;
 
 enum Status {SAINDO, SAIU, PARADO, MOVENDO};
 
 typedef int ** Grid;
 
+typedef struct celula{
+    int loc_lin, loc_col;
+    double valor;
+}celula;
+
 struct saida {
-    int loc_lin, loc_col; // localização da saida na grid
-    double **field; // piso referente à saida especificada
+    int largura; // largura da saída (em células contíguas)
+    celula *loc; // celulas que fazem parte da saída. Valor setado para 1.0
+    double **field; // piso final referente à saída
 };
 typedef struct saida * Saida;
 
-typedef struct conjunto_portas{
+typedef struct conjunto_saidas{
     double **combined_field; // piso resultante da combinação dos pisos de cada uma das saidas
     Saida *vet_saidas;// vetor de todas as saidas
     int num_saidas;// número de saidas
@@ -43,9 +49,10 @@ typedef struct conjunto_pedestres {
 } Conjunto_pedestres;
 
 typedef struct command_line {
-    char nome_arquivo_entrada[51];
-    char nome_arquivo_saida[51];
-    char nome_arquivo_auxiliar[51];
+    char comando_completo[500];
+    char nome_arquivo_entrada[150];
+    char nome_arquivo_saida[150];
+    char nome_arquivo_auxiliar[150];
     int output_type;
     int output_to_file;
     int input_method;
@@ -53,6 +60,9 @@ typedef struct command_line {
     int na_saida;
     int sempre_menor;
     int evitar_mov_cantos;
+    int permitir_mov_x;
+    int status;
+    int detalhes;
 } Command_line;
 
 extern Grid grid_esqueleto;
@@ -64,6 +74,7 @@ extern Command_line commands;
 
 int **alocar_matriz_int(int num_lin, int num_col);
 int zerar_matriz_inteiros(int **mat, int num_lin, int num_col);
+int zerar_matriz_doubles(double **mat, int num_lin, int num_col);
 void desalocar_matriz_int(int **mat, int lin);
 double **alocar_matriz_double(int num_lin, int num_col);
 void desalocar_matriz_double(double **mat, int lin);

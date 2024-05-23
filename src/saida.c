@@ -9,6 +9,8 @@
 #include<stdlib.h>
 #include"../headers/global_declarations.h"
 #include"../headers/saida.h"
+#include"../headers/celula.h"
+#include"../headers/impressao.h"
 
 const double regra[3][3] = {{VALOR_DIAGONAL, 1.0, VALOR_DIAGONAL},
                             {     1.0,       0.0,       1.0     },
@@ -17,7 +19,9 @@ const double regra[3][3] = {{VALOR_DIAGONAL, 1.0, VALOR_DIAGONAL},
    determinar o valor dos vizinhos. */
 
 Saida criar_saida(int loc_linha, int loc_coluna);
+int eh_saida_valida(Saida s);
 int determinar_piso_saida(Saida s);
+int combinar_pisos(double **piso_combinado);
 
 /**
  * Cria uma estrutura Saida correspondente à localização passada (se válida) e a inicializa
@@ -34,13 +38,45 @@ Saida criar_saida(int loc_linha, int loc_coluna)
     Saida nova = malloc(sizeof(struct saida));
     if(nova != NULL)
     {
-        nova->loc_lin = loc_linha;
-        nova->loc_col = loc_coluna;
+        nova->loc = malloc(sizeof(celula));
+        if(nova->loc == NULL)
+            return NULL;
+        
+        celula primeira = {loc_linha, loc_coluna, 1.0};
+
+        nova->loc[0] = primeira;
+        nova->largura = 1;
 
         nova->field = alocar_matriz_double(num_lin_grid, num_col_grid);
     }
 
     return nova;
+}
+
+
+/**
+ * Expande a saída passada pela célula nas coordenadas passadas.
+ * 
+ * @param exp Saida que deve ser expandida
+ * @param loc_linha Linha da célula
+ * @param loc_coluna Coluna da célula
+ * @return Inteiro, 0 (sucesso) ou 1 (fracasso).
+*/
+int expandir_saida(Saida exp, int loc_linha, int loc_coluna)
+{
+    if(loc_linha < 0 || loc_linha >= num_lin_grid || loc_coluna < 0 || loc_coluna >= num_col_grid)
+        return 1;
+
+    exp->largura += 1;
+    exp->loc = realloc(exp->loc, sizeof(celula) * exp->largura);
+    if(exp->loc == NULL)
+        return 1;
+
+    celula nova = {loc_linha, loc_coluna, 1.0};
+
+    exp->loc[exp->largura - 1] = nova;
+
+    return 0;
 }
 
 /**
@@ -78,7 +114,14 @@ int adicionar_saida_conjunto(int loc_linha, int loc_coluna)
 void desalocar_saidas()
 {
     for(int s = 0; s < saidas.num_saidas; s++)
-        free(saidas.vet_saidas[s]->field);
+    {
+        Saida atual = saidas.vet_saidas[s];
+
+        free(atual->loc);
+        desalocar_matriz_double(atual->field, num_lin_grid);
+        free(atual);
+    }
+
     free(saidas.vet_saidas);
     saidas.vet_saidas = NULL;
 
@@ -86,6 +129,52 @@ void desalocar_saidas()
     saidas.combined_field = NULL;
 
     saidas.num_saidas = 0;
+}
+
+/**
+ * Verifica se a saída dada é acessível de alguma forma.
+ * 
+ * @param s Saída que será verificada
+ * @return 0, para falso, 1, para verdadeiro.
+*/
+int eh_saida_valida(Saida s)
+{
+    // Uma saída é acessível se houver, pelo menos, uma célula vazia (sem obstáculo) adjascente na vertical ou horizontal.
+
+    // OBS: Se outra saída estiver colocada na frente da que estiver sendo testada, há a possibilidade dela ainda assim ser considerada válida.
+
+    if(s == NULL)
+        return 0;
+
+    double **mat = s->field;
+
+    int count = 0;
+    for(int i = 0; i < s->largura; i++)
+    {
+        celula c = s->loc[i];
+
+        for(int j = -1; j < 2; j++)
+        {
+            if(c.loc_lin + j < 0 || c.loc_lin + j >= num_lin_grid)
+                continue;
+
+            for(int k = -1; k < 2; k++)
+            {
+                if(c.loc_col + k < 0 || c.loc_col + k >= num_col_grid)
+                    continue;
+
+                if(mat[c.loc_lin + j][c.loc_col + k] == VALOR_PAREDE || mat[c.loc_lin + j][c.loc_col + k] == VALOR_SAIDA)
+                    continue;
+
+                if(j != 0 && k != 0)
+                    continue; // diagonais
+
+                return 1;
+            }
+        }
+    }
+
+    return 0;
 }
 
 /**
@@ -116,7 +205,16 @@ int determinar_piso_saida(Saida s)
                 mat[i][h] = 0.0;
         }
     }
-    mat[s->loc_lin][s->loc_col] = VALOR_SAIDA; // Adiciona a saida
+
+    for(int i = 0; i < s->largura; i++)
+    {
+        celula saida_celula = s->loc[i];
+
+        mat[saida_celula.loc_lin][saida_celula.loc_col] = VALOR_SAIDA; // adiciona a célula da saída
+    }
+
+    if( ! eh_saida_valida(s))
+        return -1;
 
     double **aux = alocar_matriz_double(num_lin_grid,num_col_grid);
     // matriz para armazenar as alterações para o tempo t + 1 do autômato
@@ -179,13 +277,15 @@ int determinar_piso_saida(Saida s)
     }
     while(qtd_mudancas != 0);
 
+    desalocar_matriz_double(aux, num_lin_grid);
+
     return 0;
 }
 
 /**
  * Determina o piso geral do ambiente por meio da fusão dos pisos para cada saída.
  * 
- * @return Inteiro, 0 (sucesso) ou 1 (falha).
+ * @return Inteiro, 0 (sucesso),1 (falha) ou -1 (saída inacessível).
 */
 int determinar_piso_geral()
 {
@@ -197,8 +297,9 @@ int determinar_piso_geral()
 
     for(int q = 0; q < saidas.num_saidas; q++)
     {
-        if( determinar_piso_saida(saidas.vet_saidas[q]))
-            return 1;
+        int retorno = determinar_piso_saida(saidas.vet_saidas[q]);
+        if(retorno != 0 )
+            return retorno;
     }
 
     saidas.combined_field = alocar_matriz_double(num_lin_grid, num_col_grid);
@@ -208,16 +309,40 @@ int determinar_piso_geral()
         return 1;
     }
 
-    copiar_matriz_double(saidas.combined_field, saidas.vet_saidas[0]->field); // copia o piso da primeira porta
+    if( zerar_matriz_doubles(saidas.combined_field, num_lin_grid, num_col_grid))
+        return 1;
+
+    if( combinar_pisos(saidas.combined_field))
+        return 1;
+
+    return 0;
+}
+
+/**
+ * Realiza a combinação dos pisos finais de cada uma das saídas do conjunto.
+ * 
+ * @param piso_combinado ponteiro para a matriz onde a combinação deve ocorrer
+ * 
+ * @return Inteiro, 0 (sucesso) ou 1 (falha).
+*/
+int combinar_pisos(double **piso_combinado)
+{
+    // ========================= //
+    // Adicionar verificações!!! //
+    // ========================= //
+
+    double **fonte = saidas.vet_saidas[0]->field;
+    copiar_matriz_double(piso_combinado, fonte); // copia o piso da primeira saida
     
     for(int q = 1; q < saidas.num_saidas; q++)
     {
+        fonte = saidas.vet_saidas[q]->field;
         for(int i = 0; i < num_lin_grid; i++)
         {
             for(int h = 0; h < num_col_grid; h++)
             {
-                if(saidas.combined_field[i][h] > saidas.vet_saidas[q]->field[i][h])
-                    saidas.combined_field[i][h] = saidas.vet_saidas[q]->field[i][h];
+                if(piso_combinado[i][h] > fonte[i][h])
+                    piso_combinado[i][h] = fonte[i][h];
             }
         }
     }
