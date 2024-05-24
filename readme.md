@@ -26,9 +26,21 @@ Os arquivos auxiliares contêm as coordenadas em que saídas devem ser inseridas
 tenha sido escolhido. Cada linha contém um conjunto de saídas que será usado pelo número de simulações determinadas,
 sendo substituído pelo próximo conjunto (se existir) assim que elas acabem. A seguinte sintaxe é usada:
 
+1 - Vírgulas são usadas para separar diferentes saídas.
+
+2 - O símbolo de adição ( + ) é usado para indicar que o próximo par de coordenadas faz parte da mesma saída.
+
+3 - Um ponto final indica o fim da lista de coordenadas para uma dada simulação.
+
+Exemplos:
+
 ```text
 linha1 coluna1, linha2 coluna2, ... , linhaN colunaN.
+linha1_1 coluna1_1+ linha1_2 coluna1_2, ...
 ```
+
+Um número indeterminado de portas é aceito para um dado conjunto de simulações.
+Saídas repetidas são aceitas (e tratadas como duas saídas distintas).
 
 Arquivos auxiliares devem ser inseridos no diretório `saidas/`.
 
@@ -86,14 +98,21 @@ Variáveis de simulação:
   
 Toggle Options:
 
+      --detalhes             Indica se o output deve conter informações sobre
+                             as saídas.
   -d, --debug                Indica se mensagens de debug devem ser impressas
                              na saída padrão.
+      --evitar-mov-cantos    Indica que a movimentação através de cantos de
+                             paredes/obstáculos deve ser impedida.
       --na-saida             Indica que o pedestre deve permanecer por um passo
                              de tempo quando chega na saída (invés de ser
                              retirado imediatamente).
+      --permitir-mov-x       Permite que os pedestres se movimentem em X.
       --sempre-menor         Indica que a movimentação dos pedestres é
                              sempre para a menor célula, com o pedestre
                              ficando parado se ela estiver ocupada.
+      --status               Indica se mensagens de status durante a execução
+                             de simulações devem ser impressas em stdout.
   
 Outros:
 
@@ -106,11 +125,6 @@ for any corresponding short options.
 
 O arquivo passado por --auxiliary-file deve conter, em cada uma de suas linhas,
 as localizações das saídas para um único conjunto de simulações.
-Um número indeterminado de portas é aceito para um dado conjunto de
-simulações, com o conteúdo do arquivo devendo seguir o seguinte padrão:
-LIN_PORTA_1 COL_PORTA_1, LIN_PORTA_2 COL_PORTA_2 ...
-        Depois do último par deve vir um ponto final.
-OBS: Saídas repetidas são aceitas.
 
 --output-type indica quais e como os dados gerados pela simulação devem ser
 enviados para a saída. As seguintes opções são possíveis:
@@ -124,11 +138,13 @@ carregado ou se o ambiente deve ser gerado.
         Ambiente carregado de um arquivo:
                 1 - Apenas a estrutura do ambiente (portas substituídas por paredes).
                 2 - Estrutura e portas.
-                3 - Estrutura e pedestres.              4 - Estrutura, portas e pedestres.
+                3 - Estrutura e pedestres.
+                4 - Estrutura, portas e pedestres.
         Ambiente criado automaticamente:
                 5 - Ambiente será criado considerando quantidade de linhas e colunas
-passadas pelas opções --lin e --col,Opções que não carregam portas do
-arquivo de entrada devem recebê-las via --auxiliary-file.
+passadas pelas opções --lin e --col.
+Opções que não carregam portas do arquivo de entrada devem recebê-las via
+--auxiliary-file.
 O método 4 é o padrão.
 Para os métodos 1,3 e 5, --auxiliary-file é obrigatório.
 Para o método 5, --lin e --col são obrigatórios.
@@ -138,11 +154,22 @@ As variáveis de simulação não são obrigatórias.
 --simu e --ped tem valor padrão de 1.
 --seed tem valor padrão de 0.
 
-Toggle Options são opções que podem ser ativadas.
---na-sala quando não ativado permite que os pedestres sejam removidos da sala
-assim que pisam em uma saída.
---sempre-menor quando não ativado permite que os pedestres se movimentem para
-a célula menor válida.
+Toggle Options são opções que podem ser ativadas e também não são
+obrigatórias.
+--na-sala quando ativado obriga os pedestres a ficarem um passo de tempo na
+saída do ambiente antes de serem removidos.
+--sempre-menor quando ativado obriga os pedestres a só se moverem para a menor
+célula de sua vizinhança. Se esta estiver ocupada, o pedestre irá esperar
+ela ser desocupada.
+--evitar-mov-cantos quando ativado impede que pedestres se movimentem através
+dos cantos de paredes/obstáculos. Um único movimento se torna necessariamente
+em 3 movimentos.
+--permitir-mov-x quando ativado permite que os pedestres ignorem a restrição
+que impede movimentações em X.
+--debug ativa mensagens de debug.
+--status ativa mensagens que indicam o progessão de simulações.
+--detalhes inclui um cabeçalho contendo as correspondentes saídas de cada
+conjunto de simulação.
 
-Opções desnecessárias para determinados modos são ignoradas.
+Opções desnecessárias para determinados --input-method são ignoradas.
 ```
