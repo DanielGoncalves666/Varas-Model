@@ -1,4 +1,3 @@
 #!/bin/bash
 
-gcc -o build/varas.exe src/*.c -lm
-./build/varas.exe "$@"
+gcc -o build/varas.exe src/*.c -lm -Wall && ./build/varas.exe "$@"
