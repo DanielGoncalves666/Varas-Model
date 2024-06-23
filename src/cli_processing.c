@@ -295,6 +295,9 @@ void extract_full_command(char *full_command, int key, char *arg)
         case OPT_VARAS_FIG7:
             sprintf(aux, " --varas-fig7");
             break;
+        case OPT_SEED:
+            sprintf(aux, " --seed=%s", arg);
+            break;
         case 'o':
         case 'O':
         case 'e':
@@ -304,7 +307,6 @@ void extract_full_command(char *full_command, int key, char *arg)
         case 'c':
         case 'p':
         case 's':
-        case OPT_SEED:
             if(arg == NULL)
                 sprintf(aux, " -%c",key);
             else
