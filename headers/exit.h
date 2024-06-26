@@ -2,16 +2,17 @@
 #define EXIT_H
 
 #include"shared_resources.h"
+#include"grid.h"
 
 struct exit {
     int width; // in contiguous cells
     Location *coordinates; // cells that form up the exit
-    double **floor_field;
+    Double_Grid floor_field;
 };
 typedef struct exit * Exit;
 
 typedef struct{
-    double **final_floor_field; // Floor field obtained by combining the floor fields of each door
+    Double_Grid final_floor_field; // Floor field obtained by combining the floor fields of each door
     Exit *list;
     int num_exits;
 } Exits_Set;

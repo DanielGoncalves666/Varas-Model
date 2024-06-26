@@ -112,7 +112,6 @@ int main(int argc, char **argv){
             reset_integer_grid(heatmap_grid, cli_args.global_line_number, cli_args.global_column_number);
         }
 
-
         print_execution_status(simulation_set_index, simulation_set_quantity);
         simulation_set_index++;
 
@@ -159,7 +158,10 @@ static Function_Status run_simulations(FILE *output_file)
         while(is_environment_empty() == false)
         {
             if(cli_args.show_debug_information)
+            {
+                print_int_grid(pedestrian_position_grid);
                 printf("\nTimestep %d.\n", number_timesteps + 1);
+            }
             
             evaluate_pedestrians_movements();
             determine_pedestrians_in_panic();

@@ -87,9 +87,23 @@ void print_pedestrian_position_grid(FILE *output_stream, int simulation_number, 
 		fprintf(output_stream,"\n");
 	}
 	else
-		fprintf(stderr, "No valid stream was provided at print_pedestrian_position_grid.\n");
+		fprintf(stderr, "No valid stream was provided at print_pedestrian_position_grid.\n");	
+}
 
-		
+/**
+ * Print the integer grid to stdout.
+ * 
+ * @param int_grid Integer grid to be printed.
+*/
+void print_int_grid(Int_Grid int_grid)
+{
+	for(int i = 0; i < cli_args.global_line_number; i++){
+		for(int h = 0; h < cli_args.global_column_number; h++){
+			printf("%3d ", int_grid[i][h]);
+		}
+		printf("\n\n");
+	}
+	printf("\n");
 }
 
 /**

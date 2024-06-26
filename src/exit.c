@@ -210,7 +210,10 @@ static Function_Status calculate_exit_floor_field(Exit current_exit)
     // stores the chances for the timestep t + 1
     
     if(auxiliary_grid == NULL)
+    {
+        fprintf(stderr, "Failure to allocate the auxiliary_grid at calculate_exit_floor_field.\n");
         return FAILURE;
+    }
 
     copy_double_grid(auxiliary_grid, floor_field); // copies the base structure of the floor field
 
@@ -229,12 +232,12 @@ static Function_Status calculate_exit_floor_field(Exit current_exit)
 
                 for(int j = -1; j < 2; j++)
                 {
-                    if(is_within_grid_lines(i + j) == false)
+                    if(! is_within_grid_lines(i + j))
                         continue;
                     
                     for(int k = -1; k < 2; k++)
                     {
-                        if(is_within_grid_columns(h + k) == false)
+                        if(! is_within_grid_columns(h + k))
                             continue;
 
                         if(floor_field[i + j][h + k] == WALL_VALUE || floor_field[i + j][h + k] == EXIT_VALUE)
@@ -242,7 +245,7 @@ static Function_Status calculate_exit_floor_field(Exit current_exit)
 
                         if(j != 0 && k != 0)
                         {
-                            if( is_diagonal_valid((Location){i,h},(Location){j,k},floor_field) == false)
+                            if(! is_diagonal_valid((Location){i,h},(Location){j,k},floor_field))
                                 continue;
                         }
 
@@ -279,7 +282,7 @@ static Function_Status calculate_exit_floor_field(Exit current_exit)
 */
 static void initialize_exit_floor_field(Exit current_exit)
 {
-    // Add walls and obstacles do the floor field. 
+    // Add walls and obstacles to the floor field. 
     for(int i = 0; i < cli_args.global_line_number; i++)
     {
         for(int h = 0; h < cli_args.global_column_number; h++)
