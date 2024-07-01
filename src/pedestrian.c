@@ -644,7 +644,7 @@ static void solve_X_movement(Pedestrian first_pedestrian, Pedestrian second_pede
         second_pedestrian->state = STOPPED;
     else
         first_pedestrian->state = STOPPED;
-
+    
     if(cli_args.show_debug_information)
         printf("X Movement between %d and %d --> %d.\n", first_pedestrian->id, second_pedestrian->id, 
                                                          sorted_num < 50 ? first_pedestrian->id : second_pedestrian->id);

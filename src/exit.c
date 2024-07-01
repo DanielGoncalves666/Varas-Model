@@ -14,13 +14,6 @@
 #include"../headers/cli_processing.h"
 #include"../headers/shared_resources.h"
 
-#define DIAGONAL_VALUE 1.5
-
-const double floor_field_rule[][3] = 
-    {{DIAGONAL_VALUE, 1.0, DIAGONAL_VALUE},
-     {     1.0,       0.0,       1.0     },
-     {DIAGONAL_VALUE, 1.0, DIAGONAL_VALUE}};
-
 Exits_Set exits_set = {NULL, NULL, 0};
 
 static Exit create_new_exit(Location exit_coordinates);
@@ -199,6 +192,11 @@ static Function_Status calculate_exit_floor_field(Exit current_exit)
         fprintf(stderr, "A Null pointer was received in 'calculate_exit_floor_field' instead of a valid Exit.\n");
         return FAILURE;
     }
+
+    double floor_field_rule[][3] = 
+                    {{cli_args.diagonal, 1.0, cli_args.diagonal},
+                     {       1.0,        0.0,        1.0       },
+                     {cli_args.diagonal, 1.0, cli_args.diagonal}};
 
     initialize_exit_floor_field(current_exit);
 
